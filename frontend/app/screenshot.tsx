@@ -20,7 +20,9 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { ModeSelector } from "@/src/components/ModeSelector";
 import { SuggestionCard, LoadingSuggestions } from "@/src/components/SuggestionCard";
-import { COLORS, RADIUS, SPACING } from "@/src/theme";
+import { COLORS, RADIUS, SPACING, FONTS, GRADIENTS } from "@/src/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 
 type Mode = "normal" | "flirty" | "exclusive";
 
@@ -135,7 +137,8 @@ export default function ScreenshotScreen() {
           <Ionicons name="chevron-back" size={22} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Screenshot Analysis</Text>
+          <Text style={styles.eyebrow}>STEP 03</Text>
+          <Text style={styles.title}>Screenshot <Text style={styles.titleItalic}>Reader</Text></Text>
           <Text style={styles.subtitle}>Upload a chat — get reply ideas.</Text>
         </View>
       </View>
@@ -221,12 +224,13 @@ export default function ScreenshotScreen() {
           )}
 
           <TouchableOpacity
-            style={[styles.cta, loading && { opacity: 0.6 }]}
-            onPress={generate}
+            style={[loading && { opacity: 0.6 }, (!imageBase64) && { opacity: 0.5 }, { marginTop: SPACING.xl }]}
+            onPress={() => { try { Haptics.selectionAsync(); } catch {}; generate(); }}
             disabled={loading || !imageBase64}
             activeOpacity={0.9}
             testID="screenshot-generate"
           >
+            <LinearGradient colors={GRADIENTS.rose} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.cta}>
             {loading ? (
               <ActivityIndicator color={COLORS.textInverse} />
             ) : (
@@ -235,6 +239,7 @@ export default function ScreenshotScreen() {
                 <Text style={styles.ctaText}>Analyze & suggest replies</Text>
               </>
             )}
+            </LinearGradient>
           </TouchableOpacity>
 
           {loading && <LoadingSuggestions />}
@@ -276,8 +281,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { fontSize: 20, fontWeight: "600", color: COLORS.textPrimary },
-  subtitle: { fontSize: 12, color: COLORS.textSecondary },
+  title: { fontFamily: FONTS.display, fontSize: 26, color: COLORS.textPrimary, marginTop: 2, letterSpacing: -0.3 },
+  titleItalic: { fontFamily: FONTS.displayItalic, color: COLORS.rose },
+  eyebrow: { fontFamily: FONTS.bodyHeavy, fontSize: 9, color: COLORS.rose, letterSpacing: 2 },
+  subtitle: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   label: {
     fontSize: 11,
     fontWeight: "800",
@@ -361,20 +368,19 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   cta: {
-    marginTop: SPACING.xl,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: SPACING.sm,
-    backgroundColor: COLORS.terracotta,
     paddingVertical: 16,
     borderRadius: RADIUS.lg,
-    minHeight: 52,
+    minHeight: 54,
   },
   ctaText: {
     color: COLORS.textInverse,
     fontSize: 15,
-    fontWeight: "600",
+    fontFamily: FONTS.bodyBold,
+    letterSpacing: 0.3,
   },
   error: {
     marginTop: SPACING.md,

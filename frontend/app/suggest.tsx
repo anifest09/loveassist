@@ -18,7 +18,9 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { ModeSelector } from "@/src/components/ModeSelector";
 import { SuggestionCard, LoadingSuggestions } from "@/src/components/SuggestionCard";
-import { COLORS, RADIUS, SPACING } from "@/src/theme";
+import { COLORS, RADIUS, SPACING, FONTS, GRADIENTS } from "@/src/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 
 type Mode = "normal" | "flirty" | "exclusive";
 
@@ -90,8 +92,9 @@ export default function SuggestScreen() {
           <Ionicons name="chevron-back" size={22} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Reply Suggestions</Text>
-          <Text style={styles.subtitle}>What did they say? Get smart replies.</Text>
+          <Text style={styles.eyebrow}>STEP 01</Text>
+          <Text style={styles.title}>Reply <Text style={styles.titleItalic}>Suggestions</Text></Text>
+          <Text style={styles.subtitle}>What did they say? Get smart, tailored replies.</Text>
         </View>
       </View>
 
@@ -166,12 +169,13 @@ export default function SuggestScreen() {
           )}
 
           <TouchableOpacity
-            style={[styles.cta, loading && { opacity: 0.6 }]}
-            onPress={generate}
+            style={[loading && { opacity: 0.6 }, { marginTop: SPACING.xl }]}
+            onPress={() => { try { Haptics.selectionAsync(); } catch {}; generate(); }}
             disabled={loading}
             activeOpacity={0.9}
             testID="suggest-generate"
           >
+            <LinearGradient colors={GRADIENTS.rose} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.cta}>
             {loading ? (
               <ActivityIndicator color={COLORS.textInverse} />
             ) : (
@@ -180,6 +184,7 @@ export default function SuggestScreen() {
                 <Text style={styles.ctaText}>Generate suggestions</Text>
               </>
             )}
+            </LinearGradient>
           </TouchableOpacity>
 
           {loading && <LoadingSuggestions />}
@@ -229,11 +234,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { fontSize: 20, fontWeight: "600", color: COLORS.textPrimary },
-  subtitle: { fontSize: 12, color: COLORS.textSecondary },
+  title: { fontFamily: FONTS.display, fontSize: 26, color: COLORS.textPrimary, marginTop: 2, letterSpacing: -0.3 },
+  titleItalic: { fontFamily: FONTS.displayItalic, color: COLORS.rose },
+  eyebrow: { fontFamily: FONTS.bodyHeavy, fontSize: 9, color: COLORS.rose, letterSpacing: 2 },
+  subtitle: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   label: {
-    fontSize: 11,
-    fontWeight: "800",
+    fontFamily: FONTS.bodyHeavy,
+    fontSize: 10,
     color: COLORS.textSecondary,
     letterSpacing: 2,
     marginTop: SPACING.xl,
@@ -255,12 +262,12 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   relChipSelected: {
-    backgroundColor: COLORS.terracotta,
-    borderColor: COLORS.terracotta,
+    backgroundColor: COLORS.rose,
+    borderColor: COLORS.rose,
   },
   relChipText: {
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
     color: COLORS.textPrimary,
   },
   textArea: {
@@ -271,30 +278,31 @@ const styles = StyleSheet.create({
     minHeight: 110,
     padding: SPACING.lg,
     fontSize: 15,
+    fontFamily: FONTS.body,
     color: COLORS.textPrimary,
-    lineHeight: 21,
+    lineHeight: 22,
   },
   cta: {
-    marginTop: SPACING.xl,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: SPACING.sm,
-    backgroundColor: COLORS.terracotta,
     paddingVertical: 16,
     borderRadius: RADIUS.lg,
-    minHeight: 52,
+    minHeight: 54,
   },
   ctaText: {
     color: COLORS.textInverse,
     fontSize: 15,
-    fontWeight: "600",
+    fontFamily: FONTS.bodyBold,
+    letterSpacing: 0.3,
   },
   error: {
     marginTop: SPACING.md,
     fontSize: 13,
-    color: COLORS.rose,
+    color: COLORS.danger,
+    fontFamily: FONTS.bodyMedium,
   },
   emptyResult: { marginTop: SPACING.xl, alignItems: "center" },
-  emptyText: { fontSize: 13, color: COLORS.textSecondary },
+  emptyText: { fontSize: 13, color: COLORS.textSecondary, fontFamily: FONTS.body },
 });

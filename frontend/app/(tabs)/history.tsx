@@ -13,7 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { api } from "@/src/api";
-import { COLORS, RADIUS, SPACING, MODE_META } from "@/src/theme";
+import { COLORS, RADIUS, SPACING, FONTS, MODE_META } from "@/src/theme";
 
 type HistoryItem = {
   id: string;
@@ -77,8 +77,9 @@ export default function HistoryTab() {
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <View style={styles.header}>
-        <Text style={styles.title}>History</Text>
-        <Text style={styles.subtitle}>Your recent AI suggestions</Text>
+        <Text style={styles.eyebrow}>YOUR RECENT</Text>
+        <Text style={styles.title}>History<Text style={styles.titleItalic}>.</Text></Text>
+        <Text style={styles.subtitle}>Generated AI suggestions saved for you</Text>
       </View>
 
       {loading ? (
@@ -210,8 +211,11 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.md,
   },
-  title: { fontSize: 22, fontWeight: "600", color: COLORS.textPrimary },
+  title: { fontFamily: FONTS.display, fontSize: 28, color: COLORS.textPrimary, lineHeight: 32 },
+  titleItalic: { fontFamily: FONTS.displayItalic, color: COLORS.rose },
+  eyebrow: { fontFamily: FONTS.bodyHeavy, fontSize: 10, color: COLORS.rose, letterSpacing: 2 },
   subtitle: {
+    fontFamily: FONTS.body,
     fontSize: 13,
     color: COLORS.textSecondary,
     marginTop: 2,
@@ -245,10 +249,10 @@ const styles = StyleSheet.create({
   },
   cardHead: { flexDirection: "row", alignItems: "flex-start", gap: SPACING.sm },
   cardKind: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: COLORS.terracotta,
-    letterSpacing: 1.5,
+    fontSize: 10,
+    fontFamily: FONTS.bodyHeavy,
+    color: COLORS.rose,
+    letterSpacing: 1.8,
   },
   cardSummary: {
     marginTop: 4,
@@ -291,8 +295,8 @@ const styles = StyleSheet.create({
   },
   expandText: {
     fontSize: 12,
-    color: COLORS.terracotta,
-    fontWeight: "700",
+    color: COLORS.rose,
+    fontFamily: FONTS.bodyBold,
   },
   sug: {
     flexDirection: "row",

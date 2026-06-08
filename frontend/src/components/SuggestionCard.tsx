@@ -1,14 +1,11 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, RADIUS, SPACING } from "../theme";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { COLORS, RADIUS, SPACING, FONTS, GRADIENTS, SHADOWS } from "../theme";
 
 type Props = {
   suggestion: string;
@@ -16,86 +13,96 @@ type Props = {
   testIDPrefix?: string;
 };
 
-export const SuggestionCard: React.FC<Props> = ({
-  suggestion,
-  index,
-  testIDPrefix = "suggestion",
-}) => {
+export const SuggestionCard: React.FC<Props> = ({ suggestion, index, testIDPrefix = "suggestion" }) => {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await Clipboard.setStringAsync(suggestion);
+    try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <View style={styles.card} testID={`${testIDPrefix}-card-${index}`}>
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>{String(index + 1).padStart(2, "0")}</Text>
+    <Animated.View entering={FadeInDown.delay(index * 80).springify()} testID={`${testIDPrefix}-card-${index}`}>
+      <LinearGradient colors={GRADIENTS.cardCream} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, SHADOWS.card]}>
+        <View style={styles.headerRow}>
+          <LinearGradient colors={GRADIENTS.rose} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.badge}>
+            <Text style={styles.badgeText}>{String(index + 1).padStart(2, "0")}</Text>
+          </LinearGradient>
+          <View style={styles.divider} />
+          <View style={styles.sparkle}>
+            <Ionicons name="sparkles" size={11} color={COLORS.goldDeep} />
+          </View>
+        </View>
+        <Text style={styles.text} selectable>{suggestion}</Text>
+        <TouchableOpacity style={[styles.copyBtn, copied && styles.copyBtnCopied]} onPress={copy} activeOpacity={0.85} testID={`${testIDPrefix}-copy-${index}`}>
+          <Ionicons name={copied ? "checkmark" : "copy-outline"} size={14} color={copied ? COLORS.textInverse : COLORS.textPrimary} />
+          <Text style={[styles.copyText, copied && { color: COLORS.textInverse }]}>{copied ? "Copied" : "Copy"}</Text>
+        </TouchableOpacity>
+      </LinearGradient>
+    </Animated.View>
+  );
+};
+
+export const LoadingSuggestions: React.FC = () => {
+  const [dots, setDots] = useState("");
+  useEffect(() => {
+    const t = setInterval(() => setDots((d) => (d.length >= 3 ? "" : d + ".")), 400);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <View style={styles.loadingWrap} testID="suggestions-loading">
+      <View style={styles.loadingRing}>
+        <ActivityIndicator size="small" color={COLORS.rose} />
       </View>
-      <Text style={styles.text} selectable>
-        {suggestion}
-      </Text>
-      <TouchableOpacity
-        style={[styles.copyBtn, copied && styles.copyBtnCopied]}
-        onPress={copy}
-        activeOpacity={0.85}
-        testID={`${testIDPrefix}-copy-${index}`}
-      >
-        <Ionicons
-          name={copied ? "checkmark" : "copy-outline"}
-          size={14}
-          color={copied ? COLORS.textInverse : COLORS.textPrimary}
-        />
-        <Text
-          style={[
-            styles.copyText,
-            copied && { color: COLORS.textInverse },
-          ]}
-        >
-          {copied ? "Copied" : "Copy"}
-        </Text>
-      </TouchableOpacity>
+      <Text style={styles.loadingTitle}>Crafting your words{dots}</Text>
+      <Text style={styles.loadingSub}>Premium AI is composing replies</Text>
     </View>
   );
 };
 
-export const LoadingSuggestions: React.FC = () => (
-  <View style={styles.loadingWrap} testID="suggestions-loading">
-    <ActivityIndicator size="small" color={COLORS.terracotta} />
-    <Text style={styles.loadingText}>Crafting suggestions…</Text>
-  </View>
-);
-
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.bgSurface,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.sandBorder,
-    position: "relative",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
   },
   badge: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    backgroundColor: COLORS.terracotta,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: RADIUS.pill,
   },
   badgeText: {
     fontSize: 10,
-    fontWeight: "800",
+    fontFamily: FONTS.bodyHeavy,
     color: COLORS.textInverse,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.sandBorder,
+  },
+  sparkle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(200,165,116,0.18)",
   },
   text: {
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 24,
     color: COLORS.textPrimary,
-    marginTop: 24,
+    fontFamily: FONTS.body,
   },
   copyBtn: {
     marginTop: SPACING.md,
@@ -103,29 +110,47 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: COLORS.bgBase,
+    backgroundColor: "rgba(28,26,20,0.04)",
     borderColor: COLORS.sandBorder,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: RADIUS.pill,
   },
   copyBtnCopied: {
-    backgroundColor: COLORS.terracotta,
-    borderColor: COLORS.terracotta,
+    backgroundColor: COLORS.rose,
+    borderColor: COLORS.rose,
   },
   copyText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
     color: COLORS.textPrimary,
   },
   loadingWrap: {
-    paddingVertical: 32,
+    paddingVertical: 40,
     alignItems: "center",
-    gap: SPACING.md,
+    gap: 10,
   },
-  loadingText: {
-    fontSize: 13,
+  loadingRing: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.bgSurface,
+    borderWidth: 1,
+    borderColor: COLORS.sandBorder,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
+  },
+  loadingTitle: {
+    fontFamily: FONTS.displayMedium,
+    fontSize: 18,
+    color: COLORS.textPrimary,
+  },
+  loadingSub: {
+    fontSize: 12,
+    fontFamily: FONTS.body,
     color: COLORS.textSecondary,
+    letterSpacing: 0.3,
   },
 });

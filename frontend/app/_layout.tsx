@@ -6,25 +6,23 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
+import { useAppFonts } from "@/src/hooks/use-app-fonts";
 import { AuthProvider } from "@/src/auth-context";
 import { COLORS } from "@/src/theme";
 
-// Keep the native splash visible from cold start until icon fonts register.
-// Required because @expo/vector-icons' componentDidMount fallback fires
-// Font.loadAsync against a broken vendor path if any <Icon> mounts before
-// the family is registered — which throws on Android Expo Go.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [loaded, error] = useIconFonts();
+  const [iconLoaded, iconError] = useIconFonts();
+  const [appLoaded, appError] = useAppFonts();
+
+  const ready = (iconLoaded || iconError) && (appLoaded || appError);
 
   useEffect(() => {
-    if (loaded || error) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded, error]);
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
 
-  if (!loaded && !error) return null;
+  if (!ready) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: COLORS.bgBase }}>
@@ -35,6 +33,7 @@ export default function RootLayout() {
             screenOptions={{
               headerShown: false,
               contentStyle: { backgroundColor: COLORS.bgBase },
+              animation: "fade",
             }}
           />
         </AuthProvider>

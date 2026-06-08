@@ -18,7 +18,7 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { ModeSelector } from "@/src/components/ModeSelector";
 import { SuggestionCard, LoadingSuggestions } from "@/src/components/SuggestionCard";
-import { COLORS, RADIUS, SPACING } from "@/src/theme";
+import { COLORS, RADIUS, SPACING, FONTS } from "@/src/theme";
 
 type Mode = "normal" | "flirty" | "exclusive";
 
@@ -83,7 +83,8 @@ export default function FirstMessageScreen() {
           <Ionicons name="chevron-back" size={22} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>First Message</Text>
+          <Text style={styles.eyebrow}>STEP 02</Text>
+          <Text style={styles.title}>First <Text style={styles.titleItalic}>Message</Text></Text>
           <Text style={styles.subtitle}>Break the ice with a great opener.</Text>
         </View>
       </View>
@@ -196,11 +197,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { fontSize: 20, fontWeight: "600", color: COLORS.textPrimary },
-  subtitle: { fontSize: 12, color: COLORS.textSecondary },
+  title: { fontFamily: FONTS.display, fontSize: 26, color: COLORS.textPrimary, marginTop: 2, letterSpacing: -0.3 },
+  titleItalic: { fontFamily: FONTS.displayItalic, color: COLORS.rose },
+  eyebrow: { fontFamily: FONTS.bodyHeavy, fontSize: 9, color: COLORS.rose, letterSpacing: 2 },
+  subtitle: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   label: {
-    fontSize: 11,
-    fontWeight: "800",
+    fontFamily: FONTS.bodyHeavy,
+    fontSize: 10,
     color: COLORS.textSecondary,
     letterSpacing: 2,
     marginTop: SPACING.xl,
@@ -214,28 +217,29 @@ const styles = StyleSheet.create({
     minHeight: 90,
     padding: SPACING.lg,
     fontSize: 15,
+    fontFamily: FONTS.body,
     color: COLORS.textPrimary,
-    lineHeight: 21,
+    lineHeight: 22,
   },
   cta: {
-    marginTop: SPACING.xl,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: SPACING.sm,
-    backgroundColor: COLORS.terracotta,
     paddingVertical: 16,
     borderRadius: RADIUS.lg,
-    minHeight: 52,
+    minHeight: 54,
   },
   ctaText: {
     color: COLORS.textInverse,
     fontSize: 15,
-    fontWeight: "600",
+    fontFamily: FONTS.bodyBold,
+    letterSpacing: 0.3,
   },
   error: {
     marginTop: SPACING.md,
     fontSize: 13,
-    color: COLORS.rose,
+    fontFamily: FONTS.bodyMedium,
+    color: COLORS.danger,
   },
 });

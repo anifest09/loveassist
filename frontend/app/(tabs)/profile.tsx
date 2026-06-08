@@ -13,7 +13,7 @@ import { useRouter } from "expo-router";
 
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
-import { COLORS, RADIUS, SPACING, LANGUAGES, MODE_META } from "@/src/theme";
+import { COLORS, RADIUS, SPACING, FONTS, LANGUAGES, MODE_META } from "@/src/theme";
 
 export default function ProfileTab() {
   const router = useRouter();
@@ -58,7 +58,8 @@ export default function ProfileTab() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Profile</Text>
+        <Text style={styles.eyebrow}>SETTINGS</Text>
+        <Text style={styles.title}>Profile<Text style={styles.titleItalic}>.</Text></Text>
 
         <View style={styles.profileCard} testID="profile-card">
           <View style={styles.avatar}>
@@ -185,13 +186,22 @@ export default function ProfileTab() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bgBase },
-  title: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: COLORS.textPrimary,
+  eyebrow: {
+    fontFamily: FONTS.bodyHeavy,
+    fontSize: 10,
+    color: COLORS.rose,
+    letterSpacing: 2,
     marginTop: SPACING.sm,
-    marginBottom: SPACING.lg,
   },
+  title: {
+    fontFamily: FONTS.display,
+    fontSize: 28,
+    color: COLORS.textPrimary,
+    marginTop: 2,
+    marginBottom: SPACING.lg,
+    lineHeight: 32,
+  },
+  titleItalic: { fontFamily: FONTS.displayItalic, color: COLORS.rose },
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -206,17 +216,17 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: COLORS.terracotta,
+    backgroundColor: COLORS.rose,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
     color: COLORS.textInverse,
     fontSize: 22,
-    fontWeight: "700",
+    fontFamily: FONTS.bodyBold,
   },
-  name: { fontSize: 16, fontWeight: "600", color: COLORS.textPrimary },
-  email: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  name: { fontSize: 16, fontFamily: FONTS.bodyBold, color: COLORS.textPrimary },
+  email: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2, fontFamily: FONTS.body },
   tier: {
     marginTop: SPACING.sm,
     alignSelf: "flex-start",
@@ -238,15 +248,15 @@ const styles = StyleSheet.create({
   },
   tierText: {
     fontSize: 10,
-    fontWeight: "800",
+    fontFamily: FONTS.bodyHeavy,
     color: COLORS.textSecondary,
     letterSpacing: 1.2,
   },
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: "800",
+    fontSize: 10,
+    fontFamily: FONTS.bodyHeavy,
     color: COLORS.textSecondary,
-    letterSpacing: 2,
+    letterSpacing: 2.2,
     marginTop: SPACING.xl,
     marginBottom: SPACING.md,
   },
@@ -263,18 +273,19 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   optionSelected: {
-    borderColor: COLORS.terracotta,
+    borderColor: COLORS.rose,
     backgroundColor: COLORS.bgBase,
   },
   optionTitle: {
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: FONTS.bodySemi,
     color: COLORS.textPrimary,
   },
   optionSub: {
     fontSize: 12,
     color: COLORS.textSecondary,
     marginTop: 1,
+    fontFamily: FONTS.body,
   },
   radio: {
     width: 18,
@@ -284,14 +295,14 @@ const styles = StyleSheet.create({
     borderColor: COLORS.sandBorderDark,
   },
   lockBadge: {
-    backgroundColor: COLORS.gold,
+    backgroundColor: COLORS.goldBright,
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 6,
   },
   lockBadgeText: {
     fontSize: 9,
-    fontWeight: "800",
+    fontFamily: FONTS.bodyHeavy,
     color: "#2C2C2A",
     letterSpacing: 0.5,
   },
@@ -310,6 +321,6 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 14,
     color: COLORS.rose,
-    fontWeight: "600",
+    fontFamily: FONTS.bodyBold,
   },
 });
