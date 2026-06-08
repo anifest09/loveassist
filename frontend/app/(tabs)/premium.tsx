@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Animated as RNAnimated, Easing } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -9,22 +9,25 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { COLORS, RADIUS, SPACING, FONTS, GRADIENTS, SHADOWS } from "@/src/theme";
+import { PaymentWebViewModal } from "@/src/components/PaymentWebViewModal";
 
 const BENEFITS: { icon: keyof typeof import("@expo/vector-icons").Ionicons.glyphMap; title: string; desc: string }[] = [
   { icon: "infinite", title: "Unlimited suggestions", desc: "Generate as many ideas as you need, every day." },
   { icon: "scan", title: "Advanced screenshot analysis", desc: "Deep, multi-message context awareness." },
+  { icon: "language", title: "Live translate", desc: "Instantly translate suggestions or your match's reply into any of 20 languages." },
   { icon: "flash", title: "Priority AI responses", desc: "Skip the queue with premium-tier speed." },
   { icon: "color-wand", title: "Exclusive voice mode", desc: "Unlock the bolder, poetic Exclusive tone." },
-  { icon: "language", title: "All 5 languages", desc: "English · Spanish · French · Hindi · Português." },
+  { icon: "globe", title: "20 languages", desc: "From English to 简体中文 · 한국어 · 日本語 · Filipino and more." },
   { icon: "shield-checkmark", title: "Private & safe", desc: "Encrypted, consent-aware, never shared." },
 ];
 
 const COMPARE = [
   { label: "Replies per day", free: "10", pro: "Unlimited" },
   { label: "Screenshot analysis", free: "Basic", pro: "Advanced" },
+  { label: "Live translate", free: false, pro: true },
   { label: "Exclusive voice", free: false, pro: true },
   { label: "Priority responses", free: false, pro: true },
-  { label: "All 5 languages", free: true, pro: true },
+  { label: "20 languages", free: true, pro: true },
 ];
 
 function useShimmer() {
@@ -41,28 +44,98 @@ function useShimmer() {
 
 export default function PremiumTab() {
   const { subscription, refresh } = useAuth();
-  const [busy, setBusy] = useState<"trial" | "upgrade" | null>(null);
+  const [busy, setBusy] = useState<"trial" | "razorpay" | "paypal" | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [msgError, setMsgError] = useState(false);
+  const [price, setPrice] = useState(7.6);
+  const [pay, setPay] = useState<{
+    visible: boolean;
+    url: string | null;
+    simulated: boolean;
+    gateway: "razorpay" | "paypal";
+    ref: string;
+  }>({ visible: false, url: null, simulated: false, gateway: "razorpay", ref: "" });
   const shimmer = useShimmer();
 
   const status = subscription?.status ?? "none";
   const isPremium = status === "active";
   const isTrial = status === "trialing";
 
+  useEffect(() => {
+    api.pricing().then((p) => setPrice(p.price)).catch(() => {});
+  }, []);
+
   const onStartTrial = async () => {
-    setBusy("trial"); setMsg(null);
+    setBusy("trial"); setMsg(null); setMsgError(false);
     try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
-    try { await api.startTrial(); await refresh(); setMsg("Your 7-day free trial is now active."); }
-    catch (e: any) { setMsg(e?.message ?? "Failed to start trial"); }
-    finally { setBusy(null); }
+    try {
+      await api.startTrial();
+      await refresh();
+      setMsg("Your 7-day free trial is now active.");
+    } catch (e: any) {
+      setMsg(e?.message ?? "Failed to start trial"); setMsgError(true);
+    } finally { setBusy(null); }
   };
 
-  const onUpgrade = async () => {
-    setBusy("upgrade"); setMsg(null);
-    try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
-    try { const res = await api.upgrade(); await refresh(); setMsg(res?.message || "Premium activated."); }
-    catch (e: any) { setMsg(e?.message ?? "Upgrade failed"); }
-    finally { setBusy(null); }
+  const launchRazorpay = async () => {
+    setBusy("razorpay"); setMsg(null); setMsgError(false);
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
+    try {
+      const res = await api.razorpayCreate({});
+      setPay({
+        visible: true,
+        url: res.short_url,
+        simulated: res.simulated,
+        gateway: "razorpay",
+        ref: res.payment_link_id,
+      });
+    } catch (e: any) {
+      setMsg(e?.message ?? "Razorpay error"); setMsgError(true);
+    } finally { setBusy(null); }
+  };
+
+  const launchPayPal = async () => {
+    setBusy("paypal"); setMsg(null); setMsgError(false);
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
+    try {
+      const res = await api.paypalCreate({});
+      setPay({
+        visible: true,
+        url: res.approve_url,
+        simulated: res.simulated,
+        gateway: "paypal",
+        ref: res.order_id,
+      });
+    } catch (e: any) {
+      setMsg(e?.message ?? "PayPal error"); setMsgError(true);
+    } finally { setBusy(null); }
+  };
+
+  const onPayApproved = async () => {
+    try {
+      if (pay.gateway === "razorpay") {
+        const r = await api.razorpayVerify(pay.ref);
+        if (r.ok) {
+          setMsg("🎉 Premium activated. Welcome to LoveAssist Premium!");
+          setMsgError(false);
+        } else {
+          setMsg("Payment still processing. Try again in a moment."); setMsgError(true);
+        }
+      } else {
+        const r = await api.paypalCapture(pay.ref);
+        if (r.ok) {
+          setMsg("🎉 Premium activated. Welcome to LoveAssist Premium!");
+          setMsgError(false);
+        } else {
+          setMsg("Payment still processing. Try again in a moment."); setMsgError(true);
+        }
+      }
+      await refresh();
+    } catch (e: any) {
+      setMsg(e?.message ?? "Verification failed"); setMsgError(true);
+    } finally {
+      setPay((p) => ({ ...p, visible: false }));
+    }
   };
 
   const shimmerX = shimmer.interpolate({ inputRange: [0, 1], outputRange: [-280, 280] });
@@ -112,10 +185,10 @@ export default function PremiumTab() {
             <View>
               <Text style={styles.priceLabel}>Premium membership</Text>
               <View style={styles.priceRow}>
-                <Text style={styles.price}>$9.99</Text>
+                <Text style={styles.price}>${price.toFixed(2)}</Text>
                 <Text style={styles.priceMo}>/month</Text>
               </View>
-              <Text style={styles.priceSub}>Cancel anytime · 7-day free trial</Text>
+              <Text style={styles.priceSub}>All features unlocked · 7-day free trial · Cancel anytime</Text>
             </View>
             <View style={styles.priceBadge}>
               <Ionicons name="diamond" size={12} color={COLORS.goldDeep} />
@@ -123,7 +196,14 @@ export default function PremiumTab() {
             </View>
           </View>
 
-          {msg && <Text style={styles.msg} testID="premium-message">{msg}</Text>}
+          {msg && (
+            <Text
+              style={[styles.msg, msgError && { color: COLORS.danger }]}
+              testID="premium-message"
+            >
+              {msg}
+            </Text>
+          )}
 
           {!isPremium && !isTrial && (
             <TouchableOpacity onPress={onStartTrial} disabled={busy !== null} activeOpacity={0.92} testID="premium-start-trial">
@@ -135,14 +215,61 @@ export default function PremiumTab() {
             </TouchableOpacity>
           )}
 
-          {(isTrial || !isPremium) && (
-            <TouchableOpacity onPress={onUpgrade} disabled={busy !== null} activeOpacity={0.92} style={{ marginTop: 10 }} testID="premium-upgrade">
-              <LinearGradient colors={GRADIENTS.premium} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.cta, styles.ctaDark]}>
-                {busy === "upgrade" ? <ActivityIndicator color={COLORS.goldBright} /> : (
-                  <><Ionicons name="diamond" size={16} color={COLORS.goldBright} /><Text style={[styles.ctaText, { color: COLORS.goldBright }]}>{isTrial ? "Upgrade now" : "Go Premium — $9.99/mo"}</Text></>
+          {!isPremium && (
+            <View style={{ marginTop: SPACING.md }}>
+              <Text style={styles.payHeading}>
+                {isTrial ? "Upgrade with" : "Or pay now with"}
+              </Text>
+
+              <TouchableOpacity
+                onPress={launchRazorpay}
+                disabled={busy !== null}
+                activeOpacity={0.92}
+                style={styles.payBtn}
+                testID="premium-pay-razorpay"
+              >
+                <View style={[styles.payLogo, { backgroundColor: "#0c2451" }]}>
+                  <Text style={styles.payLogoText}>R</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.payTitle}>Pay with Razorpay</Text>
+                  <Text style={styles.paySub}>Cards · UPI · Netbanking · Wallets</Text>
+                </View>
+                {busy === "razorpay" ? (
+                  <ActivityIndicator color={COLORS.textPrimary} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
                 )}
-              </LinearGradient>
-            </TouchableOpacity>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={launchPayPal}
+                disabled={busy !== null}
+                activeOpacity={0.92}
+                style={styles.payBtn}
+                testID="premium-pay-paypal"
+              >
+                <View style={[styles.payLogo, { backgroundColor: "#003087" }]}>
+                  <Text style={styles.payLogoText}>P</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.payTitle}>Pay with PayPal</Text>
+                  <Text style={styles.paySub}>PayPal balance · Cards · Pay in 4</Text>
+                </View>
+                {busy === "paypal" ? (
+                  <ActivityIndicator color={COLORS.textPrimary} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.textSecondary} />
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.secureRow}>
+                <Ionicons name="lock-closed" size={11} color={COLORS.textMuted} />
+                <Text style={styles.secureText}>
+                  Secure checkout · We never see your card details
+                </Text>
+              </View>
+            </View>
           )}
 
           {isPremium && (
@@ -197,9 +324,18 @@ export default function PremiumTab() {
         </View>
 
         <Text style={styles.disclaimer}>
-          Billing is simulated in this preview build. Live Stripe payments activate after publishing.
+          Real Razorpay / PayPal checkout uses your card or account directly. In this preview, sandbox keys are used &mdash; you&apos;ll see a simulated success screen and Premium will be activated for testing.
         </Text>
       </ScrollView>
+
+      <PaymentWebViewModal
+        visible={pay.visible}
+        url={pay.url}
+        simulated={pay.simulated}
+        gateway={pay.gateway}
+        onClose={() => setPay((p) => ({ ...p, visible: false }))}
+        onApproved={onPayApproved}
+      />
     </SafeAreaView>
   );
 }
@@ -287,6 +423,62 @@ const styles = StyleSheet.create({
   ctaDark: { borderWidth: 1, borderColor: "rgba(200,165,116,0.3)" },
   ctaText: { color: COLORS.textInverse, fontFamily: FONTS.bodyBold, fontSize: 14, letterSpacing: 0.3 },
   msg: { marginTop: SPACING.sm, fontSize: 13, color: COLORS.success, fontFamily: FONTS.bodySemi },
+
+  payHeading: {
+    fontFamily: FONTS.bodyHeavy,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    color: COLORS.textSecondary,
+    marginBottom: 10,
+  },
+  payBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.bgSurface,
+    borderWidth: 1,
+    borderColor: COLORS.sandBorder,
+    marginBottom: 10,
+  },
+  payLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  payLogoText: {
+    color: "#fff",
+    fontFamily: FONTS.bodyHeavy,
+    fontSize: 18,
+    letterSpacing: 1,
+  },
+  payTitle: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 14,
+    color: COLORS.textPrimary,
+  },
+  paySub: {
+    fontFamily: FONTS.body,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  secureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  secureText: {
+    fontFamily: FONTS.body,
+    fontSize: 11,
+    color: COLORS.textMuted,
+  },
 
   activeCard: {
     flexDirection: "row",

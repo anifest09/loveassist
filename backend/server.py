@@ -77,6 +77,24 @@ class DevLoginRequest(BaseModel):
     email: str = "demo@loveassist.ai"
 
 
+class TranslateRequest(BaseModel):
+    texts: List[str]
+    target_language: str
+    source_language: Optional[str] = None
+    preserve_tone: bool = True
+
+
+class CreatePaymentRequest(BaseModel):
+    plan: str = "monthly_premium"
+    return_url: Optional[str] = None
+    cancel_url: Optional[str] = None
+
+
+class CapturePayPalRequest(BaseModel):
+    order_id: str
+
+
+
 # ===================== Helpers =====================
 def _aware(dt):
     if dt is None:
@@ -289,6 +307,21 @@ LANG_NAMES = {
     "fr": "French",
     "hi": "Hindi",
     "pt": "Portuguese",
+    "zh-CN": "Chinese (Simplified, Mandarin)",
+    "zh-TW": "Chinese (Traditional, Taiwan / Mandarin)",
+    "ko": "Korean",
+    "ja": "Japanese",
+    "tl": "Filipino (Tagalog)",
+    "de": "German",
+    "it": "Italian",
+    "id": "Indonesian",
+    "th": "Thai",
+    "vi": "Vietnamese",
+    "ar": "Arabic",
+    "tr": "Turkish",
+    "ru": "Russian",
+    "nl": "Dutch",
+    "pl": "Polish",
 }
 
 MODE_INSTRUCTIONS = {
@@ -491,6 +524,381 @@ async def ai_screenshot(
     except Exception as e:
         logging.exception("AI screenshot error")
         raise HTTPException(status_code=500, detail=f"AI error: {e}")
+
+
+# ===================== Translate =====================
+def build_translate_system(target_lang_name: str, preserve_tone: bool) -> str:
+    return (
+        f"You are a precise translator. Translate the user's text(s) into {target_lang_name}. "
+        f"{'Preserve the original tone, intent, emoji, and punctuation. ' if preserve_tone else ''}"
+        "Do NOT add commentary. Do NOT transliterate names. "
+        f"If the source contains nudity/explicit/sexual content, refuse and return: [\"{SAFETY_BLOCK_TOKEN}\"]. "
+        "Return ONLY a JSON array of strings — one translated string per input, in order. "
+        "No numbering, no quotes within strings."
+    )
+
+
+@api_router.post("/ai/translate")
+async def ai_translate(
+    req: TranslateRequest, authorization: Optional[str] = Header(None)
+):
+    user = await get_user_from_token(authorization)
+    # Premium-gated feature
+    sub = await get_subscription(user["user_id"])
+    if sub.get("status") not in ("trialing", "active"):
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "code": "PREMIUM_REQUIRED",
+                "message": "Live translate is a premium feature. Start your 7-day free trial or upgrade to unlock.",
+            },
+        )
+    if not req.texts:
+        raise HTTPException(status_code=400, detail="texts required")
+    target = LANG_NAMES.get(req.target_language, req.target_language)
+    sys_msg = build_translate_system(target, req.preserve_tone)
+    user_text = (
+        f"Source language: {LANG_NAMES.get(req.source_language or '', 'auto-detect')}\n"
+        f"Target language: {target}\n\n"
+        f"Translate these {len(req.texts)} item(s):\n"
+        + json.dumps(req.texts, ensure_ascii=False)
+    )
+    try:
+        text = await call_claude(sys_msg, user_text)
+        out = parse_json_list(text)
+        if check_safety_block(out):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "SAFETY_BLOCKED",
+                    "message": "This text appears to contain nudity or explicit content. Translation refused.",
+                },
+            )
+        # Pad/trim to same length as input
+        if len(out) < len(req.texts):
+            out = out + [""] * (len(req.texts) - len(out))
+        out = out[: len(req.texts)]
+        return {"translations": out, "target_language": req.target_language}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("AI translate error")
+        raise HTTPException(status_code=500, detail=f"Translate error: {e}")
+
+
+# ===================== Payments =====================
+PREMIUM_USD_PRICE = float(os.environ.get("PREMIUM_USD_PRICE", "7.60"))
+RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
+PAYPAL_CLIENT_ID = os.environ.get("PAYPAL_CLIENT_ID", "")
+PAYPAL_CLIENT_SECRET = os.environ.get("PAYPAL_CLIENT_SECRET", "")
+PAYPAL_MODE = os.environ.get("PAYPAL_MODE", "sandbox").lower()
+PAYPAL_BASE = (
+    "https://api-m.sandbox.paypal.com"
+    if PAYPAL_MODE != "live"
+    else "https://api-m.paypal.com"
+)
+
+
+def _is_placeholder(v: str) -> bool:
+    if not v:
+        return True
+    return "placeholder" in v.lower()
+
+
+async def activate_premium_for(user_id: str, gateway: str, ref: str, days: int = 30):
+    now = datetime.now(timezone.utc)
+    premium_until = now + timedelta(days=days)
+    await db.subscriptions.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "user_id": user_id,
+                "status": "active",
+                "mode": gateway,
+                "premium_until": premium_until,
+                "updated_at": now,
+                "last_payment_ref": ref,
+            }
+        },
+        upsert=True,
+    )
+    await db.payments.insert_one(
+        {
+            "user_id": user_id,
+            "gateway": gateway,
+            "ref": ref,
+            "amount_usd": PREMIUM_USD_PRICE,
+            "created_at": now,
+        }
+    )
+
+
+# --- Razorpay ---
+@api_router.post("/payments/razorpay/create-link")
+async def razorpay_create_link(
+    req: CreatePaymentRequest, authorization: Optional[str] = Header(None)
+):
+    user = await get_user_from_token(authorization)
+    if _is_placeholder(RAZORPAY_KEY_ID) or _is_placeholder(RAZORPAY_KEY_SECRET):
+        # Simulated link so the UI flow works in preview without real creds.
+        ref = f"sim_rzp_{uuid.uuid4().hex[:10]}"
+        await db.payments.insert_one(
+            {
+                "user_id": user["user_id"],
+                "gateway": "razorpay",
+                "ref": ref,
+                "status": "simulated_pending",
+                "amount_usd": PREMIUM_USD_PRICE,
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+        return {
+            "simulated": True,
+            "payment_link_id": ref,
+            "short_url": f"about:blank#simulated-razorpay-{ref}",
+            "amount_usd": PREMIUM_USD_PRICE,
+            "message": "Razorpay credentials are placeholders. Live link will be generated once you set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in production env.",
+        }
+    # Razorpay charges in paise; we keep USD by default. Multiply by 100.
+    amount_paise = int(round(PREMIUM_USD_PRICE * 100))
+    body = {
+        "amount": amount_paise,
+        "currency": "USD",
+        "accept_partial": False,
+        "description": "LoveAssist AI Premium — Monthly",
+        "customer": {
+            "name": user.get("name", "LoveAssist User"),
+            "email": user.get("email", ""),
+        },
+        "notify": {"sms": False, "email": True},
+        "reminder_enable": False,
+        "notes": {"user_id": user["user_id"], "plan": req.plan},
+        "callback_url": req.return_url or "https://example.com/payment-success",
+        "callback_method": "get",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as http:
+            r = await http.post(
+                "https://api.razorpay.com/v1/payment_links",
+                json=body,
+                auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET),
+            )
+        if r.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"Razorpay error: {r.text}")
+        data = r.json()
+        await db.payments.insert_one(
+            {
+                "user_id": user["user_id"],
+                "gateway": "razorpay",
+                "ref": data.get("id"),
+                "status": data.get("status", "created"),
+                "amount_usd": PREMIUM_USD_PRICE,
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+        return {
+            "simulated": False,
+            "payment_link_id": data.get("id"),
+            "short_url": data.get("short_url"),
+            "amount_usd": PREMIUM_USD_PRICE,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Razorpay create-link error")
+        raise HTTPException(status_code=500, detail=f"Razorpay error: {e}")
+
+
+@api_router.post("/payments/razorpay/verify/{payment_link_id}")
+async def razorpay_verify(
+    payment_link_id: str, authorization: Optional[str] = Header(None)
+):
+    user = await get_user_from_token(authorization)
+    if payment_link_id.startswith("sim_rzp_"):
+        await activate_premium_for(user["user_id"], "razorpay_simulated", payment_link_id)
+        return {
+            "ok": True,
+            "simulated": True,
+            "subscription": await get_subscription(user["user_id"]),
+        }
+    if _is_placeholder(RAZORPAY_KEY_ID) or _is_placeholder(RAZORPAY_KEY_SECRET):
+        raise HTTPException(status_code=503, detail="Razorpay not configured")
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as http:
+            r = await http.get(
+                f"https://api.razorpay.com/v1/payment_links/{payment_link_id}",
+                auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET),
+            )
+        if r.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"Razorpay error: {r.text}")
+        data = r.json()
+        status = data.get("status")
+        if status == "paid":
+            await activate_premium_for(user["user_id"], "razorpay", payment_link_id)
+        return {
+            "ok": status == "paid",
+            "status": status,
+            "subscription": await get_subscription(user["user_id"]),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Razorpay verify error")
+        raise HTTPException(status_code=500, detail=f"Razorpay verify error: {e}")
+
+
+# --- PayPal ---
+async def _paypal_token() -> str:
+    async with httpx.AsyncClient(timeout=15.0) as http:
+        r = await http.post(
+            f"{PAYPAL_BASE}/v1/oauth2/token",
+            data={"grant_type": "client_credentials"},
+            auth=(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET),
+            headers={"Accept": "application/json"},
+        )
+    if r.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"PayPal auth error: {r.text}")
+    return r.json()["access_token"]
+
+
+@api_router.post("/payments/paypal/create-order")
+async def paypal_create_order(
+    req: CreatePaymentRequest, authorization: Optional[str] = Header(None)
+):
+    user = await get_user_from_token(authorization)
+    if _is_placeholder(PAYPAL_CLIENT_ID) or _is_placeholder(PAYPAL_CLIENT_SECRET):
+        ref = f"sim_pp_{uuid.uuid4().hex[:10]}"
+        await db.payments.insert_one(
+            {
+                "user_id": user["user_id"],
+                "gateway": "paypal",
+                "ref": ref,
+                "status": "simulated_pending",
+                "amount_usd": PREMIUM_USD_PRICE,
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+        return {
+            "simulated": True,
+            "order_id": ref,
+            "approve_url": f"about:blank#simulated-paypal-{ref}",
+            "amount_usd": PREMIUM_USD_PRICE,
+            "message": "PayPal credentials are placeholders. Live order will be created once you set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in production env.",
+        }
+    token = await _paypal_token()
+    body = {
+        "intent": "CAPTURE",
+        "purchase_units": [
+            {
+                "reference_id": user["user_id"],
+                "description": "LoveAssist AI Premium — Monthly",
+                "amount": {"currency_code": "USD", "value": f"{PREMIUM_USD_PRICE:.2f}"},
+            }
+        ],
+        "application_context": {
+            "brand_name": "LoveAssist AI",
+            "user_action": "PAY_NOW",
+            "return_url": req.return_url or "https://example.com/payment-success",
+            "cancel_url": req.cancel_url or "https://example.com/payment-cancelled",
+        },
+    }
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as http:
+            r = await http.post(
+                f"{PAYPAL_BASE}/v2/checkout/orders",
+                json=body,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+            )
+        if r.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"PayPal error: {r.text}")
+        data = r.json()
+        approve_url = next(
+            (lk["href"] for lk in data.get("links", []) if lk.get("rel") == "approve"),
+            None,
+        )
+        await db.payments.insert_one(
+            {
+                "user_id": user["user_id"],
+                "gateway": "paypal",
+                "ref": data["id"],
+                "status": data.get("status", "CREATED"),
+                "amount_usd": PREMIUM_USD_PRICE,
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+        return {
+            "simulated": False,
+            "order_id": data["id"],
+            "approve_url": approve_url,
+            "amount_usd": PREMIUM_USD_PRICE,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("PayPal create-order error")
+        raise HTTPException(status_code=500, detail=f"PayPal error: {e}")
+
+
+@api_router.post("/payments/paypal/capture")
+async def paypal_capture(
+    req: CapturePayPalRequest, authorization: Optional[str] = Header(None)
+):
+    user = await get_user_from_token(authorization)
+    order_id = req.order_id
+    if order_id.startswith("sim_pp_"):
+        await activate_premium_for(user["user_id"], "paypal_simulated", order_id)
+        return {
+            "ok": True,
+            "simulated": True,
+            "subscription": await get_subscription(user["user_id"]),
+        }
+    if _is_placeholder(PAYPAL_CLIENT_ID) or _is_placeholder(PAYPAL_CLIENT_SECRET):
+        raise HTTPException(status_code=503, detail="PayPal not configured")
+    token = await _paypal_token()
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as http:
+            r = await http.post(
+                f"{PAYPAL_BASE}/v2/checkout/orders/{order_id}/capture",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+            )
+        if r.status_code >= 400:
+            raise HTTPException(status_code=502, detail=f"PayPal capture error: {r.text}")
+        data = r.json()
+        if data.get("status") == "COMPLETED":
+            await activate_premium_for(user["user_id"], "paypal", order_id)
+        return {
+            "ok": data.get("status") == "COMPLETED",
+            "status": data.get("status"),
+            "subscription": await get_subscription(user["user_id"]),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("PayPal capture error")
+        raise HTTPException(status_code=500, detail=f"PayPal capture error: {e}")
+
+
+@api_router.get("/payments/pricing")
+async def pricing():
+    return {
+        "currency": "USD",
+        "price": PREMIUM_USD_PRICE,
+        "plan": "monthly_premium",
+        "trial_days": 7,
+        "gateways": {
+            "razorpay": not _is_placeholder(RAZORPAY_KEY_ID),
+            "paypal": not _is_placeholder(PAYPAL_CLIENT_ID),
+            "any_simulated": _is_placeholder(RAZORPAY_KEY_ID)
+            or _is_placeholder(PAYPAL_CLIENT_ID),
+        },
+    }
 
 
 # ===================== History =====================

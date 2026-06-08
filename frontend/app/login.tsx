@@ -120,7 +120,7 @@ export default function LoginScreen() {
             {[
               { i: "chatbubbles" as const, t: "Smart replies" },
               { i: "image-outline" as const, t: "Chat reader" },
-              { i: "sparkles" as const, t: "5 languages" },
+              { i: "language" as const, t: "20 languages · Live translate" },
             ].map((f) => (
               <View key={f.t} style={styles.feature}>
                 <View style={styles.featureIcon}><Ionicons name={f.i} size={14} color={COLORS.rose} /></View>

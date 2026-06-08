@@ -4,18 +4,20 @@ import requests
 from pathlib import Path
 
 # Load env from frontend/.env (where EXPO_PUBLIC_BACKEND_URL lives)
-def _load_env():
-    env_path = Path(__file__).resolve().parents[2] / "frontend" / ".env"
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            v = v.strip().strip('"').strip("'")
-            os.environ.setdefault(k.strip(), v)
+def _load_env(*relative_paths):
+    base = Path(__file__).resolve().parents[2]
+    for rp in relative_paths:
+        env_path = base / rp
+        if env_path.exists():
+            for line in env_path.read_text().splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                v = v.strip().strip('"').strip("'")
+                os.environ.setdefault(k.strip(), v)
 
-_load_env()
+_load_env("frontend/.env", "backend/.env")
 
 BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:

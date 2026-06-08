@@ -148,4 +148,71 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
+
+  // Translate
+  translate: (body: {
+    texts: string[];
+    target_language: string;
+    source_language?: string;
+    preserve_tone?: boolean;
+  }) =>
+    request<{ translations: string[]; target_language: string }>(
+      "/ai/translate",
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+
+  // Payments
+  pricing: () =>
+    request<{
+      currency: string;
+      price: number;
+      plan: string;
+      trial_days: number;
+      gateways: { razorpay: boolean; paypal: boolean; any_simulated: boolean };
+    }>("/payments/pricing", { method: "GET" }, false),
+  razorpayCreate: (body: {
+    return_url?: string;
+    cancel_url?: string;
+  } = {}) =>
+    request<{
+      simulated: boolean;
+      payment_link_id: string;
+      short_url: string;
+      amount_usd: number;
+      message?: string;
+    }>("/payments/razorpay/create-link", {
+      method: "POST",
+      body: JSON.stringify({ plan: "monthly_premium", ...body }),
+    }),
+  razorpayVerify: (payment_link_id: string) =>
+    request<{
+      ok: boolean;
+      simulated?: boolean;
+      status?: string;
+      subscription: any;
+    }>(`/payments/razorpay/verify/${payment_link_id}`, { method: "POST" }),
+  paypalCreate: (body: {
+    return_url?: string;
+    cancel_url?: string;
+  } = {}) =>
+    request<{
+      simulated: boolean;
+      order_id: string;
+      approve_url: string;
+      amount_usd: number;
+      message?: string;
+    }>("/payments/paypal/create-order", {
+      method: "POST",
+      body: JSON.stringify({ plan: "monthly_premium", ...body }),
+    }),
+  paypalCapture: (order_id: string) =>
+    request<{
+      ok: boolean;
+      simulated?: boolean;
+      status?: string;
+      subscription: any;
+    }>("/payments/paypal/capture", {
+      method: "POST",
+      body: JSON.stringify({ order_id }),
+    }),
 };

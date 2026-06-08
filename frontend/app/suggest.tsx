@@ -19,6 +19,8 @@ import { useAuth } from "@/src/auth-context";
 import { ModeSelector } from "@/src/components/ModeSelector";
 import { SuggestionCard, LoadingSuggestions } from "@/src/components/SuggestionCard";
 import { SafetyNotice } from "@/src/components/SafetyNotice";
+import { LanguagePickerModal } from "@/src/components/LanguagePickerModal";
+import { useTranslate } from "@/src/hooks/use-translate";
 import { COLORS, RADIUS, SPACING, FONTS, GRADIENTS } from "@/src/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
@@ -46,6 +48,7 @@ export default function SuggestScreen() {
   const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const language = user?.preferred_language || "en";
+  const tr = useTranslate(language);
 
   const generate = async () => {
     if (!context.trim()) {
@@ -205,10 +208,50 @@ export default function SuggestScreen() {
                   suggestion={s}
                   index={i}
                   testIDPrefix="suggest"
+                  onTranslate={
+                    isPremium
+                      ? () => tr.openPicker(i)
+                      : () => router.push("/(tabs)/premium")
+                  }
+                  translatedText={tr.translations[i]?.text}
+                  translating={tr.translatingIdx === i}
+                  translationLabel={tr.labelFor(i)}
+                  onClearTranslation={() => tr.clearTranslation(i)}
                 />
               ))}
             </View>
           )}
+
+          <LanguagePickerModal
+            visible={tr.pickerOpenFor !== null}
+            selected={
+              tr.pickerOpenFor !== null
+                ? tr.translations[tr.pickerOpenFor]?.lang
+                : undefined
+            }
+            title="Translate into…"
+            subtitle="Pick any of 20 languages. Tone is preserved."
+            onSelect={(code) => {
+              if (tr.pickerOpenFor !== null && suggestions) {
+                tr.translate(
+                  tr.pickerOpenFor,
+                  suggestions[tr.pickerOpenFor],
+                  code,
+                  language,
+                );
+              }
+            }}
+            onClose={tr.closePicker}
+          />
+
+          {tr.error && (
+            <SafetyNotice
+              message={tr.error}
+              isSafetyBlock={tr.errorCode === "SAFETY_BLOCKED"}
+              testID="translate-error"
+            />
+          )}
+
 
           {suggestions && suggestions.length === 0 && !loading && (
             <View style={styles.emptyResult}>

@@ -11,12 +11,27 @@ type Props = {
   suggestion: string;
   index: number;
   testIDPrefix?: string;
+  onTranslate?: () => void; // optional: when provided, shows a Translate pill
+  translatedText?: string;
+  translating?: boolean;
+  translationLabel?: string; // e.g. "Korean"
+  onClearTranslation?: () => void;
 };
 
-export const SuggestionCard: React.FC<Props> = ({ suggestion, index, testIDPrefix = "suggestion" }) => {
+export const SuggestionCard: React.FC<Props> = ({
+  suggestion,
+  index,
+  testIDPrefix = "suggestion",
+  onTranslate,
+  translatedText,
+  translating,
+  translationLabel,
+  onClearTranslation,
+}) => {
   const [copied, setCopied] = useState(false);
+  const display = translatedText && translatedText.trim() ? translatedText : suggestion;
   const copy = async () => {
-    await Clipboard.setStringAsync(suggestion);
+    await Clipboard.setStringAsync(display);
     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
@@ -33,11 +48,51 @@ export const SuggestionCard: React.FC<Props> = ({ suggestion, index, testIDPrefi
             <Ionicons name="sparkles" size={11} color={COLORS.goldDeep} />
           </View>
         </View>
-        <Text style={styles.text} selectable>{suggestion}</Text>
-        <TouchableOpacity style={[styles.copyBtn, copied && styles.copyBtnCopied]} onPress={copy} activeOpacity={0.85} testID={`${testIDPrefix}-copy-${index}`}>
-          <Ionicons name={copied ? "checkmark" : "copy-outline"} size={14} color={copied ? COLORS.textInverse : COLORS.textPrimary} />
-          <Text style={[styles.copyText, copied && { color: COLORS.textInverse }]}>{copied ? "Copied" : "Copy"}</Text>
-        </TouchableOpacity>
+        {translatedText && translatedText.trim() ? (
+          <>
+            <View style={styles.translatedTag}>
+              <Ionicons name="language" size={11} color={COLORS.roseDeep} />
+              <Text style={styles.translatedTagText}>
+                {translationLabel || "Translated"}
+              </Text>
+              {onClearTranslation && (
+                <TouchableOpacity onPress={onClearTranslation} hitSlop={6} testID={`${testIDPrefix}-clear-${index}`}>
+                  <Ionicons name="close-circle" size={13} color={COLORS.roseDeep} />
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={styles.text} selectable>{translatedText}</Text>
+            <Text style={styles.originalText} selectable>{suggestion}</Text>
+          </>
+        ) : (
+          <Text style={styles.text} selectable>{suggestion}</Text>
+        )}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={[styles.copyBtn, copied && styles.copyBtnCopied]} onPress={copy} activeOpacity={0.85} testID={`${testIDPrefix}-copy-${index}`}>
+            <Ionicons name={copied ? "checkmark" : "copy-outline"} size={14} color={copied ? COLORS.textInverse : COLORS.textPrimary} />
+            <Text style={[styles.copyText, copied && { color: COLORS.textInverse }]}>{copied ? "Copied" : "Copy"}</Text>
+          </TouchableOpacity>
+          {onTranslate && (
+            <TouchableOpacity
+              style={styles.translateBtn}
+              onPress={onTranslate}
+              activeOpacity={0.85}
+              disabled={translating}
+              testID={`${testIDPrefix}-translate-${index}`}
+            >
+              {translating ? (
+                <ActivityIndicator size="small" color={COLORS.roseDeep} />
+              ) : (
+                <>
+                  <Ionicons name="language" size={14} color={COLORS.roseDeep} />
+                  <Text style={styles.translateText}>
+                    {translatedText ? "Retranslate" : "Translate"}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
       </LinearGradient>
     </Animated.View>
   );
@@ -105,7 +160,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.body,
   },
   copyBtn: {
-    marginTop: SPACING.md,
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
@@ -116,6 +170,59 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: RADIUS.pill,
+  },
+  actionsRow: {
+    marginTop: SPACING.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  translateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: COLORS.blush,
+    borderColor: COLORS.roseSoft,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: RADIUS.pill,
+  },
+  translateText: {
+    fontSize: 12,
+    fontFamily: FONTS.bodySemi,
+    color: COLORS.roseDeep,
+  },
+  translatedTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    backgroundColor: COLORS.blush,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: RADIUS.pill,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: COLORS.roseSoft,
+  },
+  translatedTagText: {
+    fontFamily: FONTS.bodyHeavy,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: COLORS.roseDeep,
+  },
+  originalText: {
+    marginTop: 8,
+    paddingTop: 8,
+    fontSize: 12,
+    fontFamily: FONTS.body,
+    color: COLORS.textMuted,
+    fontStyle: "italic",
+    lineHeight: 18,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(28,26,20,0.06)",
   },
   copyBtnCopied: {
     backgroundColor: COLORS.rose,
