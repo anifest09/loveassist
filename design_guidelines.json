@@ -1,0 +1,116 @@
+{
+  "theme_and_archetype": {
+    "theme": "LIGHT",
+    "archetype": "1 (Organic & Earthy)",
+    "reasoning": "LoveAssist AI targets relationships and confidence. Users need warmth, calm, and trust, avoiding the cold clinical feel of standard tech or the overly aggressive cheesy pinks of typical dating apps. We are leaning into a premium, tactile 'Organic & Earthy' vibe."
+  },
+  "typography": {
+    "font_families": {
+      "headings": "Outfit, sans-serif",
+      "body": "Manrope, sans-serif"
+    },
+    "scales": {
+      "h1": "text-4xl sm:text-5xl font-light tracking-tight leading-none",
+      "h2": "text-2xl sm:text-3xl font-medium tracking-tight",
+      "h3": "text-xl font-medium tracking-tight",
+      "body_large": "text-lg leading-relaxed",
+      "body_base": "text-base leading-relaxed",
+      "body_small": "text-sm leading-normal",
+      "labels": "text-xs font-bold uppercase tracking-[0.2em]"
+    },
+    "rules": [
+      "Headings strictly use 'Outfit' with tight tracking.",
+      "Body text uses 'Manrope' for its exceptional readability in dense chat interfaces.",
+      "Never use Inter, Roboto, or generic defaults.",
+      "Use explicit contrast between heading weight (light or medium) and label weight (bold/uppercase)."
+    ]
+  },
+  "colors": {
+    "background": {
+      "base": "#FDFBF7",
+      "surface": "#F5F3EC",
+      "premium_dark": "#2C362B"
+    },
+    "text": {
+      "primary": "#2C2C2A",
+      "secondary": "#6B6B66",
+      "inverse": "#FDFBF7"
+    },
+    "accents": {
+      "terracotta": "#E06D53",
+      "rose": "#D94F4F",
+      "sand_border": "#E5E1D8"
+    },
+    "interactive": {
+      "cta_bg": "#E06D53",
+      "cta_hover": "#C95F47",
+      "cta_text": "#FDFBF7",
+      "bubble_user": "#E06D53",
+      "bubble_ai": "#F5F3EC"
+    },
+    "rules": [
+      "Never use pure black or pure white. All grays must be tinted warmly.",
+      "Use Terracotta for primary actions and user chat bubbles.",
+      "Use Deep Forest Green (#2C362B) exclusively for the Premium Upgrade screen to signal a shift in exclusivity and value."
+    ]
+  },
+  "spacing_and_layout": {
+    "container": "w-full max-w-md mx-auto min-h-screen bg-[#FDFBF7] relative overflow-hidden shadow-2xl",
+    "paddings": {
+      "screen": "p-6",
+      "card": "p-6",
+      "chat_bubble": "px-4 py-3",
+      "input_area": "p-4"
+    },
+    "touch_targets": "min-h-[48px] min-w-[48px]",
+    "grid_strategy": {
+      "dashboard": "grid grid-cols-2 gap-4",
+      "bento_spans": "Use 'col-span-2' for the primary action (Start Conversation) and 'col-span-1' for secondary tools."
+    },
+    "rules": [
+      "The app acts as a mobile web app. Constrain the main layout to 'max-w-md mx-auto' to simulate a mobile screen on desktop browsers.",
+      "Maintain a minimum of 12px (gap-3) between interactive elements to prevent accidental touches.",
+      "Sticky bottom components (like chat composer) must have solid backgrounds and adequate safe-area padding at the bottom."
+    ]
+  },
+  "surface_strategies": {
+    "cards": "Flat background (bg-[#F5F3EC]), 1px subtle border (border-[#E5E1D8]), no shadow by default. On hover/active: translate-y-[-2px] and subtle shadow.",
+    "chat_bubbles": "User: bg-terracotta text-inverse rounded-2xl rounded-br-sm. AI: bg-surface text-primary rounded-2xl rounded-bl-sm 1px border border-sand_border.",
+    "header": "Sticky top, crystal glass effect: backdrop-blur-xl bg-[#FDFBF7]/80 border-b border-[#E5E1D8].",
+    "premium_card": "Deep Forest Green background, glowing accent border using linear gradient or box-shadow, text inverse."
+  },
+  "components_customization": {
+    "buttons": "Shadcn Button heavily customized. 'rounded-xl', 'font-medium'. Primary uses Terracotta. Ghost uses warm text colors.",
+    "inputs": "Shadcn Input/Textarea. 'bg-[#FDFBF7]', 'border-[#E5E1D8]', 'focus:ring-2 focus:ring-[#E06D53]/50 focus:border-[#E06D53]'. Must gracefully auto-expand in chat composer.",
+    "file_upload": "For screenshot analysis: Dashed border 'border-2 border-dashed border-[#E5E1D8] bg-[#F5F3EC] rounded-2xl flex flex-col items-center justify-center p-8 gap-4'.",
+    "badges": "For Modes (Normal/Flirty): 'rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider'."
+  },
+  "motion_and_interactions": {
+    "hover_states": "Buttons darken (bg-[#C95F47]), cards lift mildly. Always transition transform and background-color.",
+    "chat_entry": "Staggered fade-up animation for incoming AI messages (translate-y-4 to 0, opacity 0 to 1).",
+    "mode_switch": "Smooth crossfade when switching from Normal to Flirty mode."
+  },
+  "images_and_media": [
+    {
+      "url": "https://images.unsplash.com/photo-1571771826307-98d0d0999028?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwxfHxjb3VwbGUlMjBsYXVnaGluZyUyMGNhbmRpZCUyMHdhcm18ZW58MHx8fHwxNzgwOTU1NjExfDA&ixlib=rb-4.1.0&q=85",
+      "category": "onboarding_hero",
+      "description": "Warm, candid photograph of a couple laughing. Used in the onboarding or welcome screen to establish trust and relationship focus. Should be framed with a subtle mask or rounded corners (rounded-3xl)."
+    },
+    {
+      "url": "https://images.pexels.com/photos/13577782/pexels-photo-13577782.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "category": "premium_background",
+      "description": "3D rendered abstract terracotta landscape. Used as a high-end, textural background for the Premium Upgrade screen. Darken with a black/40 overlay to ensure text contrast."
+    }
+  ],
+  "accessibility_and_testing": {
+    "contrast": "Ensure Terracotta (#E06D53) against White/Linen (#FDFBF7) passes minimum 3:1 for large text and buttons.",
+    "testing_attributes": "All interactive elements (buttons, mode selectors, chat inputs, upload zones) MUST include role-based 'data-testid' attributes in kebab-case (e.g., 'data-testid=\"start-chat-button\"')."
+  },
+  "instructions_to_main_agent": {
+    "tech_stack": "React JS, Tailwind CSS, Shadcn UI primitives, Framer Motion (if needed), Lucide React (icons).",
+    "file_type": "Ensure all React components are built in .js files (not .tsx). Use JSDoc for any necessary typing.",
+    "layout_enforcement": "This is a mobile web app. Wrap the main App/Router in a `<div className=\"min-h-screen bg-gray-100 flex items-center justify-center\"><div className=\"w-full max-w-md h-[100dvh] bg-[#FDFBF7] overflow-y-auto relative shadow-2xl sm:rounded-3xl sm:h-[90vh]\">...</div></div>` to give it a physical phone constraint on desktop while remaining full-screen on actual mobile devices.",
+    "fonts_installation": "Import Google Fonts for Outfit and Manrope in the index.html or global CSS.",
+    "iconography": "Use 'lucide-react' for all UI icons. Keep stroke width at 1.5 for a premium, lightweight feel."
+  }
+}
