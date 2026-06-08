@@ -101,3 +101,175 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Build ❤️ LoveAssist AI — a mobile conversation wingman with AI reply suggestions, screenshot analysis,
+  first message generator, modes (Normal/Flirty/Exclusive-Premium), 5 languages, 7-day trial + simulated
+  Stripe upgrade, Emergent Google auth (with demo dev-login for preview), safety filters.
+
+backend:
+  - task: "Auth: Google session + dev-login + me + logout"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/auth/dev-login should create user + session, POST /api/auth/google/session calls Emergent OAuth, GET /api/auth/me returns user+sub, POST /api/auth/logout clears session. Bearer token required for protected routes."
+  - task: "Subscription: status / start-trial / upgrade"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Simulated Stripe. /api/subscription/status returns subscription. start-trial creates 7d trial. upgrade extends to 30d active."
+  - task: "AI: /api/ai/suggestions, /api/ai/first-message, /api/ai/screenshot (Claude Sonnet 4.5)"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "All call emergentintegrations LlmChat with anthropic/claude-sonnet-4-5-20250929. Exclusive mode requires trialing or active sub (402 otherwise). Screenshot accepts base64."
+  - task: "History: save/list/delete"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST/GET/DELETE /api/history scoped by user_id."
+  - task: "Settings: PATCH /api/me/settings"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updates preferred_language and default_mode."
+
+frontend:
+  - task: "Login screen (Google + Demo) + Auth context"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/login.tsx, frontend/src/auth-context.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Demo button calls /api/auth/dev-login. Google button opens Emergent OAuth and parses session_id from redirect."
+  - task: "Tabs (Home/History/Premium/Profile)"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/*.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Bottom tabs with terracotta accent."
+  - task: "Reply Suggestions screen"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/suggest.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Relationship chips, mode selector, situation input, generate -> cards with copy."
+  - task: "First Message screen"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/first-message.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "About-person + extra context inputs, mode selector, generate."
+  - task: "Screenshot Analysis screen + permissions"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/screenshot.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "expo-image-picker permission flow, base64 to /api/ai/screenshot. Note: image picker is native — web preview cannot pick files; backend endpoint can still be tested directly."
+  - task: "Premium tab (start trial / upgrade)"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/premium.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Calls /api/subscription/* and refreshes auth context."
+  - task: "Profile tab (language + default mode + signout)"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "5 languages selectable. Exclusive mode locked unless premium."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "Auth: Google session + dev-login + me + logout"
+    - "AI: /api/ai/suggestions, /api/ai/first-message, /api/ai/screenshot (Claude Sonnet 4.5)"
+    - "Subscription: status / start-trial / upgrade"
+    - "Login screen (Google + Demo) + Auth context"
+    - "Reply Suggestions screen"
+    - "First Message screen"
+    - "Premium tab (start trial / upgrade)"
+    - "Profile tab (language + default mode + signout)"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Initial MVP scaffold complete. Frontend renders login at /login (verified via screenshot).
+      Use demo button or POST /api/auth/dev-login {"name":"Demo","email":"demo+<random>@loveassist.ai"}
+      to obtain a Bearer session_token for backend tests.
+      Test all endpoints listed above end-to-end. For frontend, please use the "Try a demo account"
+      button to sign in (Google OAuth will not complete in headless preview).
+      The image picker for screenshot analysis cannot be exercised in a web preview — please test the
+      backend /api/ai/screenshot endpoint directly with a small base64 jpeg.

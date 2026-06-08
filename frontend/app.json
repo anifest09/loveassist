@@ -23,6 +23,12 @@
       "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Upload chat screenshots for AI reply ideas"
+      }
+    },
     "plugins": [
       "expo-router",
       [
@@ -31,10 +37,16 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#000"
+          "backgroundColor": "#FDFBF7"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Upload chat screenshots for AI reply ideas"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
