@@ -251,16 +251,13 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Auth: Google session + dev-login + me + logout"
-    - "AI: /api/ai/suggestions, /api/ai/first-message, /api/ai/screenshot (Claude Sonnet 4.5)"
-    - "Subscription: status / start-trial / upgrade"
-    - "Login screen (Google + Demo) + Auth context"
-    - "Reply Suggestions screen"
-    - "First Message screen"
-    - "Premium tab (start trial / upgrade)"
-    - "Profile tab (language + default mode + signout)"
+    - "Backend: Nudity safety filter on /ai/suggestions, /ai/first-message, /ai/screenshot (returns 422 SAFETY_BLOCKED)"
+    - "Frontend: SafetyNotice card displays in suggest/first-message/screenshot screens when 422 received"
+    - "Frontend: Premium luxury UI loads with Playfair/Inter fonts across all screens"
+    - "Frontend: first-message CTA now uses GRADIENTS.rose (no plain solid)"
+    - "Regression: All previously-passing flows (auth, ai, subscription, history) still work"
   stuck_tasks: []
-  test_all: true
+  test_all: false
   test_priority: "high_first"
 
 agent_communication:
@@ -273,3 +270,27 @@ agent_communication:
       button to sign in (Google OAuth will not complete in headless preview).
       The image picker for screenshot analysis cannot be exercised in a web preview — please test the
       backend /api/ai/screenshot endpoint directly with a small base64 jpeg.
+  - agent: "main"
+    message: |
+      ROUND 2 — Safety filter + Premium UI polish.
+      Backend changes (backend/server.py):
+        • New build_system_message() injects strict "NO NUDITY / NO EXPLICIT / NO MINORS" policy.
+        • Claude is instructed to return ["__SAFETY_BLOCK__"] for unsafe input.
+        • All 3 AI endpoints now detect this token and raise HTTPException(422,
+          detail={code:"SAFETY_BLOCKED", message:"..."}).
+        • Fixed user_doc _id pop after insert_one (lint EB001).
+      Frontend changes:
+        • src/api.ts now extracts {code,message} from structured error detail; throws Error with .code.
+        • New src/components/SafetyNotice.tsx — pink shield card with friendly safety copy.
+        • suggest.tsx / first-message.tsx / screenshot.tsx now track errorCode and render
+          <SafetyNotice isSafetyBlock={code==='SAFETY_BLOCKED'} /> instead of plain red text.
+        • first-message.tsx CTA wrapped in <LinearGradient GRADIENTS.rose> with Haptics.selectionAsync.
+      Please test:
+        1) POST /api/ai/suggestions with explicit/nudity context => expect 422 + SAFETY_BLOCKED code.
+        2) Regular context still returns suggestions (regression).
+        3) /api/ai/screenshot with a benign image => 200 OK.
+        4) /api/ai/screenshot with image_base64 of an explicit-looking image (use any normal photo, the
+           text-context alone may not trigger; this is acceptable — model decides on vision).
+        5) Auth, history, subscription endpoints — quick regression smoke.
+        6) Frontend: login -> suggest -> enter sexually explicit text => SafetyNotice card renders.
+      No need to retest premium UI thoroughly; that's a visual change confirmed via screenshot.

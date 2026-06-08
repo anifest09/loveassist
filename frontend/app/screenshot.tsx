@@ -20,6 +20,7 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { ModeSelector } from "@/src/components/ModeSelector";
 import { SuggestionCard, LoadingSuggestions } from "@/src/components/SuggestionCard";
+import { SafetyNotice } from "@/src/components/SafetyNotice";
 import { COLORS, RADIUS, SPACING, FONTS, GRADIENTS } from "@/src/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
@@ -38,6 +39,7 @@ export default function ScreenshotScreen() {
   const [suggestions, setSuggestions] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [permissionDeniedHard, setPermissionDeniedHard] = useState(false);
 
   const language = user?.preferred_language || "en";
@@ -90,9 +92,11 @@ export default function ScreenshotScreen() {
   const generate = async () => {
     if (!imageBase64) {
       setError("Pick a screenshot first.");
+      setErrorCode(null);
       return;
     }
     setError(null);
+    setErrorCode(null);
     setSuggestions(null);
     setLoading(true);
     try {
@@ -120,6 +124,7 @@ export default function ScreenshotScreen() {
       }
     } catch (e: any) {
       setError(e?.message ?? "Failed to analyze screenshot");
+      setErrorCode(e?.code ?? null);
     } finally {
       setLoading(false);
     }
@@ -218,9 +223,11 @@ export default function ScreenshotScreen() {
           />
 
           {error && (
-            <Text style={styles.error} testID="screenshot-error">
-              {error}
-            </Text>
+            <SafetyNotice
+              message={error}
+              isSafetyBlock={errorCode === "SAFETY_BLOCKED"}
+              testID="screenshot-error"
+            />
           )}
 
           <TouchableOpacity

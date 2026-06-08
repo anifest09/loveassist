@@ -41,11 +41,18 @@ async function request<T = any>(
     data = { detail: text };
   }
   if (!res.ok) {
-    const message =
-      typeof data?.detail === "string"
-        ? data.detail
-        : `Request failed (${res.status})`;
-    throw new Error(message);
+    let message = `Request failed (${res.status})`;
+    let code: string | undefined;
+    if (typeof data?.detail === "string") {
+      message = data.detail;
+    } else if (data?.detail && typeof data.detail === "object") {
+      message = data.detail.message ?? message;
+      code = data.detail.code;
+    }
+    const err: any = new Error(message);
+    err.status = res.status;
+    if (code) err.code = code;
+    throw err;
   }
   return data as T;
 }

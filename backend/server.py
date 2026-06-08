@@ -122,6 +122,7 @@ async def get_or_create_user(email: str, name: str, picture: Optional[str]) -> d
         "created_at": now,
     }
     await db.users.insert_one(user_doc)
+    user_doc.pop("_id", None)
     # Auto-start 7-day free trial on signup
     await db.subscriptions.update_one(
         {"user_id": user_id},
@@ -297,13 +298,25 @@ MODE_INSTRUCTIONS = {
 }
 
 
+SAFETY_BLOCK_TOKEN = "__SAFETY_BLOCK__"
+
 def build_system_message(mode: str, language: str, kind: str) -> str:
     mode_desc = MODE_INSTRUCTIONS.get(mode, MODE_INSTRUCTIONS["normal"])
     lang = LANG_NAMES.get(language, "English")
     safety = (
-        "Safety rules: never produce sexually explicit, harassing, manipulative, deceptive, "
-        "or coercive content. Respect consent. Refuse requests aimed at pressuring or harming "
-        "someone. If the situation involves rejection or distress, suggest respectful, kind replies."
+        "STRICT SAFETY POLICY (non-negotiable):\n"
+        "1. ABSOLUTELY NO NUDITY OR SEXUALLY EXPLICIT CONTENT. Never produce, describe, "
+        "imply, allude to, or roleplay nudity, sexual acts, genitalia, or pornographic material — "
+        "regardless of mode (including Flirty and Exclusive). Flirty/Exclusive stay tasteful, "
+        "suggestive at most, never explicit.\n"
+        "2. If the user's situation, message, or attached screenshot contains nudity, sexual content, "
+        "minors in sexual contexts, NSFW imagery, sexting, or solicitation — REFUSE. Do not generate "
+        "any suggestion. Instead, return EXACTLY this single-element JSON array and nothing else: "
+        f'["{SAFETY_BLOCK_TOKEN}"]\n'
+        "3. Never produce harassing, manipulative, coercive, deceptive, hateful, threatening, or "
+        "stalking content. Respect consent. If someone is being rejected, suggest kind, graceful replies.\n"
+        "4. Never produce content involving minors in any romantic/sexual context. If the screenshot "
+        f'or context appears to involve a minor, REFUSE with ["{SAFETY_BLOCK_TOKEN}"].\n'
     )
     return (
         f"You are LoveAssist AI, a thoughtful conversation wingman that helps the user craft "
@@ -311,6 +324,16 @@ def build_system_message(mode: str, language: str, kind: str) -> str:
         f"{safety} Return ONLY a JSON array of strings (no extra commentary, no preface). "
         f"Each suggestion is one short message (1–3 sentences). No numbering, no quotes inside strings."
     )
+
+
+def check_safety_block(suggestions: List[str]) -> bool:
+    """Returns True if the model refused due to safety policy."""
+    if not suggestions:
+        return False
+    for s in suggestions:
+        if SAFETY_BLOCK_TOKEN in (s or ""):
+            return True
+    return False
 
 
 def parse_json_list(text: str) -> List[str]:
@@ -383,7 +406,16 @@ async def ai_suggestions(
     )
     try:
         text = await call_claude(sys_msg, user_text)
-        return {"suggestions": parse_json_list(text)[: req.count]}
+        suggestions = parse_json_list(text)[: req.count]
+        if check_safety_block(suggestions):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "SAFETY_BLOCKED",
+                    "message": "This request appears to involve nudity or explicit content, which LoveAssist won't help with. Try rephrasing — we keep things respectful and tasteful.",
+                },
+            )
+        return {"suggestions": suggestions}
     except HTTPException:
         raise
     except Exception as e:
@@ -406,7 +438,16 @@ async def ai_first_message(
     )
     try:
         text = await call_claude(sys_msg, user_text)
-        return {"suggestions": parse_json_list(text)[: req.count]}
+        suggestions = parse_json_list(text)[: req.count]
+        if check_safety_block(suggestions):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "SAFETY_BLOCKED",
+                    "message": "This request appears to involve nudity or explicit content, which LoveAssist won't help with. Try rephrasing — we keep things respectful and tasteful.",
+                },
+            )
+        return {"suggestions": suggestions}
     except HTTPException:
         raise
     except Exception as e:
@@ -435,7 +476,16 @@ async def ai_screenshot(
         raise HTTPException(status_code=400, detail="image_base64 required")
     try:
         text = await call_claude(sys_msg, user_text, image_b64=b64)
-        return {"suggestions": parse_json_list(text)[: req.count]}
+        suggestions = parse_json_list(text)[: req.count]
+        if check_safety_block(suggestions):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "SAFETY_BLOCKED",
+                    "message": "This screenshot appears to contain nudity or explicit content, which LoveAssist won't analyze. Please upload a regular chat screenshot.",
+                },
+            )
+        return {"suggestions": suggestions}
     except HTTPException:
         raise
     except Exception as e:

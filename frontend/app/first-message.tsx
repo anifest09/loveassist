@@ -18,7 +18,10 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { ModeSelector } from "@/src/components/ModeSelector";
 import { SuggestionCard, LoadingSuggestions } from "@/src/components/SuggestionCard";
-import { COLORS, RADIUS, SPACING, FONTS } from "@/src/theme";
+import { SafetyNotice } from "@/src/components/SafetyNotice";
+import { COLORS, RADIUS, SPACING, FONTS, GRADIENTS } from "@/src/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 
 type Mode = "normal" | "flirty" | "exclusive";
 
@@ -33,15 +36,18 @@ export default function FirstMessageScreen() {
   const [suggestions, setSuggestions] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const language = user?.preferred_language || "en";
 
   const generate = async () => {
     if (!aboutPerson.trim()) {
       setError("Tell me a bit about the person you want to message.");
+      setErrorCode(null);
       return;
     }
     setError(null);
+    setErrorCode(null);
     setSuggestions(null);
     setLoading(true);
     try {
@@ -66,6 +72,7 @@ export default function FirstMessageScreen() {
       }
     } catch (e: any) {
       setError(e?.message ?? "Failed to generate suggestions");
+      setErrorCode(e?.code ?? null);
     } finally {
       setLoading(false);
     }
@@ -136,26 +143,30 @@ export default function FirstMessageScreen() {
           />
 
           {error && (
-            <Text style={styles.error} testID="first-error">
-              {error}
-            </Text>
+            <SafetyNotice
+              message={error}
+              isSafetyBlock={errorCode === "SAFETY_BLOCKED"}
+              testID="first-error"
+            />
           )}
 
           <TouchableOpacity
-            style={[styles.cta, loading && { opacity: 0.6 }]}
-            onPress={generate}
+            style={[loading && { opacity: 0.6 }, { marginTop: SPACING.xl }]}
+            onPress={() => { try { Haptics.selectionAsync(); } catch {}; generate(); }}
             disabled={loading}
             activeOpacity={0.9}
             testID="first-generate"
           >
-            {loading ? (
-              <ActivityIndicator color={COLORS.textInverse} />
-            ) : (
-              <>
-                <Ionicons name="send" size={16} color={COLORS.textInverse} />
-                <Text style={styles.ctaText}>Generate openers</Text>
-              </>
-            )}
+            <LinearGradient colors={GRADIENTS.rose} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.cta}>
+              {loading ? (
+                <ActivityIndicator color={COLORS.textInverse} />
+              ) : (
+                <>
+                  <Ionicons name="send" size={16} color={COLORS.textInverse} />
+                  <Text style={styles.ctaText}>Generate openers</Text>
+                </>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
 
           {loading && <LoadingSuggestions />}

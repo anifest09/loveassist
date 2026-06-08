@@ -18,6 +18,7 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { ModeSelector } from "@/src/components/ModeSelector";
 import { SuggestionCard, LoadingSuggestions } from "@/src/components/SuggestionCard";
+import { SafetyNotice } from "@/src/components/SafetyNotice";
 import { COLORS, RADIUS, SPACING, FONTS, GRADIENTS } from "@/src/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
@@ -42,15 +43,18 @@ export default function SuggestScreen() {
   const [suggestions, setSuggestions] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const language = user?.preferred_language || "en";
 
   const generate = async () => {
     if (!context.trim()) {
       setError("Tell me a bit about the situation first.");
+      setErrorCode(null);
       return;
     }
     setError(null);
+    setErrorCode(null);
     setSuggestions(null);
     setLoading(true);
     try {
@@ -75,6 +79,7 @@ export default function SuggestScreen() {
       }
     } catch (e: any) {
       setError(e?.message ?? "Failed to generate suggestions");
+      setErrorCode(e?.code ?? null);
     } finally {
       setLoading(false);
     }
@@ -163,9 +168,11 @@ export default function SuggestScreen() {
           />
 
           {error && (
-            <Text style={styles.error} testID="suggest-error">
-              {error}
-            </Text>
+            <SafetyNotice
+              message={error}
+              isSafetyBlock={errorCode === "SAFETY_BLOCKED"}
+              testID="suggest-error"
+            />
           )}
 
           <TouchableOpacity
