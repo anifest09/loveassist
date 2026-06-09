@@ -85,6 +85,8 @@ export const api = {
   me: () =>
     request<{ user: any; subscription: any }>("/auth/me", { method: "GET" }),
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
+  deleteAccount: () =>
+    request<{ ok: boolean }>("/auth/delete-account", { method: "DELETE" }),
 
   // Subscription
   subStatus: () =>

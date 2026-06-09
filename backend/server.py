@@ -390,6 +390,21 @@ async def logout(authorization: Optional[str] = Header(None)):
     return {"ok": True}
 
 
+@api_router.delete("/auth/delete-account")
+async def delete_account(authorization: Optional[str] = Header(None)):
+    """Permanently delete user account and all associated data.
+    Required by Apple App Store guidelines for apps with Sign in with Apple.
+    """
+    user = await get_user_from_token(authorization)
+    user_id = user["user_id"]
+    # Delete all user data
+    await db.user_sessions.delete_many({"user_id": user_id})
+    await db.history.delete_many({"user_id": user_id})
+    await db.subscriptions.delete_many({"user_id": user_id})
+    await db.users.delete_one({"id": user_id})
+    return {"ok": True}
+
+
 # ===================== Subscription =====================
 @api_router.get("/subscription/status")
 async def sub_status(authorization: Optional[str] = Header(None)):

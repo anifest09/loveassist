@@ -14,13 +14,15 @@ export default function Index() {
   useEffect(() => {
     if (loading) return;
     (async () => {
+      const seen = await storage.getItem<boolean>(ONBOARDING_KEY, false);
       if (!user) {
-        router.replace("/login");
+        // Show onboarding BEFORE login for new users
+        if (!seen) router.replace("/onboarding");
+        else router.replace("/login");
         return;
       }
-      const seen = await storage.getItem<boolean>(ONBOARDING_KEY, false);
-      if (seen) router.replace("/(tabs)");
-      else router.replace("/onboarding");
+      // Logged in users go straight to app
+      router.replace("/(tabs)");
     })();
   }, [loading, user, router]);
 

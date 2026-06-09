@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Alert,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -44,6 +46,44 @@ export default function ProfileTab() {
   const onSignOut = async () => {
     await signOut();
     router.replace("/login");
+  };
+
+  const onDeleteAccount = () => {
+    const confirmDelete = async () => {
+      setBusy("delete");
+      try {
+        await api.deleteAccount();
+        await signOut();
+        router.replace("/onboarding");
+      } catch (e: any) {
+        if (Platform.OS === "web") {
+          // eslint-disable-next-line no-alert
+          window.alert("Failed to delete account: " + (e?.message || "unknown"));
+        } else {
+          Alert.alert("Error", e?.message || "Failed to delete account");
+        }
+      } finally {
+        setBusy(null);
+      }
+    };
+
+    if (Platform.OS === "web") {
+      // eslint-disable-next-line no-alert
+      const ok = window.confirm(
+        "Delete account permanently?\n\nThis will permanently erase your account, history, chats, and subscription data. This cannot be undone.",
+      );
+      if (ok) confirmDelete();
+      return;
+    }
+
+    Alert.alert(
+      "Delete account permanently?",
+      "This will permanently erase your account, chat history, and subscription. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete forever", style: "destructive", onPress: confirmDelete },
+      ],
+    );
   };
 
   const lang = user?.preferred_language ?? "en";
@@ -179,6 +219,24 @@ export default function ProfileTab() {
           <Ionicons name="log-out-outline" size={18} color={COLORS.rose} />
           <Text style={styles.logoutText}>Sign out</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={onDeleteAccount}
+          activeOpacity={0.85}
+          disabled={busy === "delete"}
+          testID="profile-delete-account"
+        >
+          {busy === "delete" ? (
+            <ActivityIndicator color="#F87171" size="small" />
+          ) : (
+            <Ionicons name="trash-outline" size={16} color="#F87171" />
+          )}
+          <Text style={styles.deleteText}>Delete account</Text>
+        </TouchableOpacity>
+        <Text style={styles.deleteSub}>
+          Permanently erases your account, history, and subscription data. Required by Apple Sign-In policy.
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -322,5 +380,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.rose,
     fontFamily: FONTS.bodyBold,
+  },
+  deleteBtn: {
+    marginTop: SPACING.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.30)",
+    backgroundColor: "rgba(248,113,113,0.08)",
+  },
+  deleteText: {
+    fontSize: 13,
+    color: "#F87171",
+    fontFamily: FONTS.bodyBold,
+  },
+  deleteSub: {
+    marginTop: 8,
+    paddingHorizontal: 4,
+    fontSize: 11,
+    color: "rgba(255,255,255,0.45)",
+    fontFamily: FONTS.body,
+    lineHeight: 16,
+    textAlign: "center",
   },
 });
