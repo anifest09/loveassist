@@ -328,6 +328,12 @@ export default function OnboardingScreen() {
     router.replace("/(tabs)/premium");
   };
 
+  const goToSlide = (i: number) => {
+    if (i === idx) return;
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+    scrollRef.current?.scrollTo({ x: i * SCREEN_W, animated: true });
+  };
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -343,7 +349,20 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
           <View style={styles.dotsRow}>
             {SLIDES.map((_, i) => (
-              <View key={i} style={[styles.dot, i === idx && styles.dotActive]} />
+              <TouchableOpacity
+                key={i}
+                onPress={() => goToSlide(i)}
+                hitSlop={12}
+                activeOpacity={0.7}
+                testID={`onboarding-dot-${i}`}
+              >
+                <Animated.View
+                  style={[
+                    styles.dot,
+                    i === idx && styles.dotActive,
+                  ]}
+                />
+              </TouchableOpacity>
             ))}
           </View>
           <TouchableOpacity onPress={skip} hitSlop={10} testID="onboarding-skip">
@@ -403,12 +422,19 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.06)",
     alignItems: "center", justifyContent: "center",
   },
-  dotsRow: { flexDirection: "row", gap: 6 },
+  dotsRow: { flexDirection: "row", gap: 8, alignItems: "center" },
   dot: {
-    width: 6, height: 6, borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.20)",
   },
-  dotActive: { backgroundColor: COLORS.neonPink, width: 22 },
+  dotActive: {
+    backgroundColor: COLORS.neonPink,
+    width: 28,
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+  },
   skip: { color: COLORS.textSecondary, fontFamily: FONTS.bodyBold, fontSize: 13 },
 
   slide: {

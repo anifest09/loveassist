@@ -71,6 +71,17 @@ export const api = {
       { method: "POST", body: JSON.stringify({ name, email }) },
       false,
     ),
+  appleSignIn: (params: {
+    identity_token: string;
+    nonce?: string | null;
+    full_name?: { givenName?: string | null; familyName?: string | null } | null;
+    email?: string | null;
+  }) =>
+    request<{ session_token: string; user: any }>(
+      "/auth/apple",
+      { method: "POST", body: JSON.stringify(params) },
+      false,
+    ),
   me: () =>
     request<{ user: any; subscription: any }>("/auth/me", { method: "GET" }),
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),

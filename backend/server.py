@@ -77,6 +77,18 @@ class DevLoginRequest(BaseModel):
     email: str = "demo@loveassist.ai"
 
 
+class AppleFullName(BaseModel):
+    givenName: Optional[str] = None
+    familyName: Optional[str] = None
+
+
+class AppleAuthRequest(BaseModel):
+    identity_token: str
+    nonce: Optional[str] = None
+    full_name: Optional[AppleFullName] = None
+    email: Optional[str] = None
+
+
 class TranslateRequest(BaseModel):
     texts: List[str]
     target_language: str
@@ -225,6 +237,137 @@ async def dev_login(req: DevLoginRequest):
             "session_token": session_token,
             "user_id": user["user_id"],
             "expires_at": now + timedelta(days=7),
+            "created_at": now,
+        }
+    )
+    user_fresh = await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    return {"session_token": session_token, "user": user_fresh}
+
+
+# ----- Sign in with Apple (iOS) -----
+# Audience defaults to our bundle id; user can override via env when shipping
+APPLE_JWKS_URL = os.environ.get("APPLE_JWKS_URL", "https://appleid.apple.com/auth/keys")
+APPLE_ISSUER = os.environ.get("APPLE_ISSUER", "https://appleid.apple.com")
+APPLE_AUDIENCE = os.environ.get("APPLE_AUDIENCE", "com.loveassist.app")
+
+_apple_jwks_cache: dict = {"keys": None, "fetched_at": None}
+
+
+async def _get_apple_jwks() -> dict:
+    """Fetch + cache Apple's JWKS for 1h."""
+    now = datetime.now(timezone.utc)
+    cached = _apple_jwks_cache.get("keys")
+    fetched_at = _apple_jwks_cache.get("fetched_at")
+    if cached and fetched_at and (now - fetched_at).total_seconds() < 3600:
+        return cached
+    async with httpx.AsyncClient(timeout=10.0) as http:
+        r = await http.get(APPLE_JWKS_URL)
+        r.raise_for_status()
+        data = r.json()
+    _apple_jwks_cache["keys"] = data
+    _apple_jwks_cache["fetched_at"] = now
+    return data
+
+
+def _jwk_to_public_key(jwk_dict: dict):
+    """Convert Apple JWK (RSA) to a cryptography public key object."""
+    import jwt as _jwt
+    return _jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk_dict))
+
+
+async def _verify_apple_identity_token(identity_token: str, expected_nonce: Optional[str]) -> dict:
+    import jwt as _jwt
+    try:
+        unverified_header = _jwt.get_unverified_header(identity_token)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Malformed Apple token: {e}")
+    kid = unverified_header.get("kid")
+    alg = unverified_header.get("alg", "RS256")
+    if not kid:
+        raise HTTPException(status_code=401, detail="Apple token missing kid header")
+
+    jwks = await _get_apple_jwks()
+    matching = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+    if not matching:
+        # try a refresh once
+        _apple_jwks_cache["keys"] = None
+        jwks = await _get_apple_jwks()
+        matching = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+    if not matching:
+        raise HTTPException(status_code=401, detail="Apple signing key not found")
+
+    public_key = _jwk_to_public_key(matching)
+    try:
+        decoded = _jwt.decode(
+            identity_token,
+            key=public_key,
+            algorithms=[alg],
+            audience=APPLE_AUDIENCE,
+            issuer=APPLE_ISSUER,
+            options={"require": ["iss", "sub", "aud", "exp", "iat"]},
+        )
+    except _jwt.InvalidAudienceError:
+        raise HTTPException(status_code=401, detail=f"Apple token audience mismatch (expected {APPLE_AUDIENCE})")
+    except _jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Apple token expired")
+    except _jwt.InvalidTokenError as e:
+        raise HTTPException(status_code=401, detail=f"Apple token invalid: {e}")
+
+    if expected_nonce:
+        token_nonce = decoded.get("nonce")
+        # client may pass either raw nonce or SHA256 hex of nonce (Apple hashes it)
+        # we accept either match
+        if token_nonce and token_nonce != expected_nonce:
+            import hashlib
+            hashed = hashlib.sha256(expected_nonce.encode()).hexdigest()
+            if token_nonce != hashed:
+                raise HTTPException(status_code=401, detail="Apple token nonce mismatch")
+    return decoded
+
+
+@api_router.post("/auth/apple")
+async def auth_apple(req: AppleAuthRequest):
+    """Verify an Apple identity token (JWT) and issue a LoveAssist session.
+
+    Returns: { session_token, user } — same shape as /auth/google/session.
+    """
+    claims = await _verify_apple_identity_token(req.identity_token, req.nonce)
+    apple_sub = claims.get("sub")
+    email_from_token = claims.get("email")
+    email = req.email or email_from_token
+    name = ""
+    if req.full_name:
+        name = " ".join(p for p in [req.full_name.givenName, req.full_name.familyName] if p).strip()
+
+    # Lookup by apple_sub first; fall back to email
+    now = datetime.now(timezone.utc)
+    existing = await db.users.find_one({"apple_sub": apple_sub}, {"_id": 0})
+    if not existing and email:
+        existing = await db.users.find_one({"email": email}, {"_id": 0})
+
+    if existing:
+        update_fields: dict = {"apple_sub": apple_sub}
+        if name and not existing.get("name"):
+            update_fields["name"] = name
+        if email and not existing.get("email"):
+            update_fields["email"] = email
+        await db.users.update_one({"user_id": existing["user_id"]}, {"$set": update_fields})
+        user = existing
+    else:
+        # First-time signup
+        if not email:
+            email = f"apple_{apple_sub[-12:]}@privaterelay.appleid.com"
+        if not name:
+            name = "Apple User"
+        user = await get_or_create_user(email, name, None)
+        await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"apple_sub": apple_sub}})
+
+    session_token = f"apl_{uuid.uuid4().hex}"
+    await db.user_sessions.insert_one(
+        {
+            "session_token": session_token,
+            "user_id": user["user_id"],
+            "expires_at": now + timedelta(days=30),
             "created_at": now,
         }
     )

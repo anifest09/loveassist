@@ -1,22 +1,20 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "LoveAssist",
+    "slug": "loveassist",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
-    "userInterfaceStyle": "automatic",
+    "scheme": "loveassist",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true
-    },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
+        "backgroundColor": "#0A0A0F"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.loveassist.app"
     },
     "web": {
       "bundler": "metro",
@@ -25,19 +23,23 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.loveassist.app",
+      "usesAppleSignIn": true,
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Upload chat screenshots for AI reply ideas"
+        "NSPhotoLibraryUsageDescription": "Upload chat screenshots for AI reply ideas",
+        "NSCameraUsageDescription": "Capture chat screenshots for AI replies"
       }
     },
     "plugins": [
       "expo-router",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#FDFBF7"
+          "backgroundColor": "#0A0A0F"
         }
       ],
       "expo-font",

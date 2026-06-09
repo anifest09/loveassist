@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  ScrollView,
   Switch,
   Dimensions,
 } from "react-native";
@@ -22,6 +21,9 @@ import Animated, {
   withDelay,
   withTiming,
   useAnimatedStyle,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolation,
   Easing,
 } from "react-native-reanimated";
 
@@ -78,10 +80,44 @@ export default function PremiumPaywall() {
   const isPremium = status === "active";
   const isTrial = status === "trialing";
 
-  // Floating analysis card animations
+  // Floating analysis card animations (idle vertical float)
   const card1 = useFloat(0, 3000, 12);
   const card2 = useFloat(400, 3400, 14);
   const card3 = useFloat(800, 3200, 10);
+
+  // Parallax — driven by scroll position
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (e) => { scrollY.value = e.contentOffset.y; },
+  });
+  // Each card translates + tilts differently as user scrolls
+  const parallaxLeft = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(scrollY.value, [0, 300], [0, -40], Extrapolation.CLAMP) },
+      { translateX: interpolate(scrollY.value, [0, 300], [0, -18], Extrapolation.CLAMP) },
+      { rotate: `${-6 + interpolate(scrollY.value, [0, 300], [0, -6], Extrapolation.CLAMP)}deg` },
+    ],
+    opacity: interpolate(scrollY.value, [0, 280], [1, 0.55], Extrapolation.CLAMP),
+  }));
+  const parallaxCenter = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(scrollY.value, [0, 300], [0, -60], Extrapolation.CLAMP) },
+      { scale: interpolate(scrollY.value, [0, 300], [1, 0.92], Extrapolation.CLAMP) },
+    ],
+    opacity: interpolate(scrollY.value, [0, 320], [1, 0.5], Extrapolation.CLAMP),
+  }));
+  const parallaxRight = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(scrollY.value, [0, 300], [0, -30], Extrapolation.CLAMP) },
+      { translateX: interpolate(scrollY.value, [0, 300], [0, 22], Extrapolation.CLAMP) },
+      { rotate: `${6 + interpolate(scrollY.value, [0, 300], [0, 8], Extrapolation.CLAMP)}deg` },
+    ],
+    opacity: interpolate(scrollY.value, [0, 280], [1, 0.55], Extrapolation.CLAMP),
+  }));
+  const headlineParallax = useAnimatedStyle(() => ({
+    transform: [{ translateY: interpolate(scrollY.value, [0, 200], [0, -20], Extrapolation.CLAMP) }],
+    opacity: interpolate(scrollY.value, [0, 240], [1, 0.7], Extrapolation.CLAMP),
+  }));
 
   useEffect(() => {
     api.pricing().then((p) => setPrice(p.price)).catch(() => {});
@@ -149,9 +185,11 @@ export default function PremiumPaywall() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-        <ScrollView
+        <Animated.ScrollView
           contentContainerStyle={{ paddingBottom: 16 }}
           showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
         >
           {/* ===== TOP DARK SECTION ===== */}
           <View style={styles.topDark}>
@@ -178,9 +216,9 @@ export default function PremiumPaywall() {
               </View>
             </View>
 
-            {/* Floating analysis cards */}
+            {/* Floating analysis cards (idle float + scroll parallax) */}
             <View style={styles.floatBox}>
-              <Animated.View style={[styles.floatCard, styles.floatCardLeft, card2]}>
+              <Animated.View style={[styles.floatCard, styles.floatCardLeft, card2, parallaxLeft]}>
                 <LinearGradient colors={["#1F1442", "#0F0824"]} style={StyleSheet.absoluteFill} />
                 <Text style={styles.floatCardEyebrow}>SCREENSHOT</Text>
                 <Text style={styles.floatCardLine} numberOfLines={2}>
@@ -192,7 +230,7 @@ export default function PremiumPaywall() {
                 </View>
               </Animated.View>
 
-              <Animated.View style={[styles.floatCard, styles.floatCardCenter, card1]}>
+              <Animated.View style={[styles.floatCard, styles.floatCardCenter, card1, parallaxCenter]}>
                 <LinearGradient
                   colors={["#8B5CF6", "#EC4899"]}
                   start={{ x: 0, y: 0 }}
@@ -209,7 +247,7 @@ export default function PremiumPaywall() {
                 </View>
               </Animated.View>
 
-              <Animated.View style={[styles.floatCard, styles.floatCardRight, card3]}>
+              <Animated.View style={[styles.floatCard, styles.floatCardRight, card3, parallaxRight]}>
                 <LinearGradient colors={["#1F1442", "#0F0824"]} style={StyleSheet.absoluteFill} />
                 <Text style={styles.floatCardEyebrow}>TRANSLATE</Text>
                 <Text style={styles.floatCardLine} numberOfLines={2}>
@@ -222,7 +260,7 @@ export default function PremiumPaywall() {
               </Animated.View>
             </View>
 
-            <Animated.View entering={FadeIn.duration(500)} style={styles.headlineWrap}>
+            <Animated.View entering={FadeIn.duration(500)} style={[styles.headlineWrap, headlineParallax]}>
               <Text style={styles.heroEyebrow}>UNLOCK EVERYTHING</Text>
               <Text style={styles.heroTitle}>Ready to go</Text>
               <Text style={styles.heroTitleAccent}>PRO?</Text>
@@ -430,7 +468,7 @@ export default function PremiumPaywall() {
             </Text>
             <Text style={styles.testimonialAuthor}>— Maya R., Premium member</Text>
           </View>
-        </ScrollView>
+        </Animated.ScrollView>
       </SafeAreaView>
 
       <PaymentWebViewModal

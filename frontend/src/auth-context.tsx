@@ -30,11 +30,21 @@ type AuthContextType = {
   subscription: Subscription | null;
   signInWithToken: (token: string) => Promise<void>;
   signInGoogleWithSessionId: (sessionId: string) => Promise<void>;
+  signInApple: (params: {
+    identity_token: string;
+    nonce?: string | null;
+    full_name?: { givenName?: string | null; familyName?: string | null } | null;
+    email?: string | null;
+  }) => Promise<void>;
   signInDev: (name: string, email: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
   updateUserLocal: (patch: Partial<User>) => void;
   isPremium: boolean;
+  /** Trial finished and no active subscription — features should hard-lock. */
+  isAccessLocked: boolean;
+  /** Days remaining in trial (0 if not on trial). */
+  trialDaysLeft: number;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -89,6 +99,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [refresh],
   );
 
+  const signInApple = useCallback(
+    async (params: {
+      identity_token: string;
+      nonce?: string | null;
+      full_name?: { givenName?: string | null; familyName?: string | null } | null;
+      email?: string | null;
+    }) => {
+      const res = await api.appleSignIn(params);
+      await setToken(res.session_token);
+      setUser(res.user);
+      await refresh();
+    },
+    [refresh],
+  );
+
   const signInDev = useCallback(
     async (name: string, email: string) => {
       const res = await api.devLogin(name, email);
@@ -115,6 +140,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const isPremium =
     subscription?.status === "trialing" || subscription?.status === "active";
 
+  // Trial expired & no active sub — feature wall trigger.
+  const isAccessLocked =
+    !!subscription &&
+    !isPremium &&
+    (subscription.status === "expired" || subscription.status === "none");
+
+  // Days remaining in trial (rounded up).
+  const trialDaysLeft = useMemo(() => {
+    if (subscription?.status !== "trialing" || !subscription.trial_end) return 0;
+    const end = new Date(subscription.trial_end).getTime();
+    const diff = end - Date.now();
+    if (diff <= 0) return 0;
+    return Math.ceil(diff / (24 * 60 * 60 * 1000));
+  }, [subscription]);
+
   const value = useMemo(
     () => ({
       loading,
@@ -122,11 +162,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       subscription,
       signInWithToken,
       signInGoogleWithSessionId,
+      signInApple,
       signInDev,
       signOut,
       refresh,
       updateUserLocal,
       isPremium,
+      isAccessLocked,
+      trialDaysLeft,
     }),
     [
       loading,
@@ -134,11 +177,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       subscription,
       signInWithToken,
       signInGoogleWithSessionId,
+      signInApple,
       signInDev,
       signOut,
       refresh,
       updateUserLocal,
       isPremium,
+      isAccessLocked,
+      trialDaysLeft,
     ],
   );
 

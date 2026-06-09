@@ -4,11 +4,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, StyleSheet, Platform } from "react-native";
 
 import { COLORS, FONTS } from "@/src/theme";
+import { TrialLockGate } from "@/src/components/TrialLockGate";
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   return (
-    <Tabs
+    <>
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: COLORS.neonPink,
@@ -65,7 +67,9 @@ export default function TabsLayout() {
           ),
         }}
       />
-    </Tabs>
+      </Tabs>
+      <TrialLockGate />
+    </>
   );
 }
 

@@ -20,6 +20,7 @@ import Animated, {
 import { useAuth } from "@/src/auth-context";
 import { storage } from "@/src/utils/storage";
 import { COLORS, RADIUS, SPACING, FONTS } from "@/src/theme";
+import { isAppleAuthAvailable, signInWithApple } from "@/src/auth-apple";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -43,9 +44,15 @@ async function routeAfterLogin(router: ReturnType<typeof useRouter>) {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signInGoogleWithSessionId, signInDev, user, loading } = useAuth();
-  const [busy, setBusy] = useState<"google" | "dev" | null>(null);
+  const { signInGoogleWithSessionId, signInApple, signInDev, user, loading } = useAuth();
+  const [busy, setBusy] = useState<"google" | "apple" | "dev" | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showApple, setShowApple] = useState(false);
+
+  // Detect Apple Sign In availability (iOS only)
+  useEffect(() => {
+    isAppleAuthAvailable().then(setShowApple);
+  }, []);
 
   // Floating orb animations
   const orb1 = useSharedValue(0);
@@ -117,6 +124,25 @@ export default function LoginScreen() {
     finally { setBusy(null); }
   };
 
+  const handleApple = async () => {
+    setErrorMsg(null);
+    setBusy("apple");
+    try {
+      try { await Haptics.selectionAsync(); } catch {}
+      const result = await signInWithApple();
+      if (!result) { setBusy(null); return; } // user cancelled
+      await signInApple({
+        identity_token: result.identity_token,
+        nonce: result.nonce,
+        full_name: result.full_name,
+        email: result.email,
+      });
+      await routeAfterLogin(router);
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? "Apple sign-in failed");
+    } finally { setBusy(null); }
+  };
+
   return (
     <View style={styles.container}>
       {/* Animated violet/pink glow orbs */}
@@ -137,9 +163,14 @@ export default function LoginScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeIn.duration(700).delay(100)} style={styles.heroCenter}>
-          <Text style={styles.eyebrow}>YOUR PERSONAL</Text>
-          <Text style={styles.heroTitle}>RIZZ.</Text>
-          <Text style={styles.heroTitleAccent}>Unlocked.</Text>
+          <Text style={styles.eyebrow}>YOUR PERSONAL AI WINGMAN</Text>
+          <Text style={styles.heroTitle}>LoveAssist</Text>
+          <View style={styles.aiWordRow}>
+            <Text style={styles.heroTitleAccent}>AI</Text>
+            <View style={styles.heroHeart}>
+              <Ionicons name="heart" size={28} color={COLORS.neonPink} />
+            </View>
+          </View>
           <Text style={styles.heroSub}>
             AI-powered replies that hit different — for crushes, matches, and DMs you can&apos;t mess up.
           </Text>
@@ -169,6 +200,25 @@ export default function LoginScreen() {
               </>
             )}
           </TouchableOpacity>
+
+          {showApple && (
+            <TouchableOpacity
+              style={styles.appleBtn}
+              onPress={handleApple}
+              activeOpacity={0.9}
+              disabled={busy !== null}
+              testID="login-apple-button"
+            >
+              {busy === "apple" ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+                  <Text style={styles.appleBtnText}>Continue with Apple</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.ghostBtn} onPress={handleDev} activeOpacity={0.9} disabled={busy !== null} testID="login-demo-button">
             {busy === "dev" ? (
@@ -233,17 +283,30 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontFamily: "Inter_900Black",
-    fontSize: Math.min(SCREEN_W * 0.2, 84),
-    lineHeight: Math.min(SCREEN_W * 0.2, 84) * 0.98,
+    fontSize: Math.min(SCREEN_W * 0.16, 68),
+    lineHeight: Math.min(SCREEN_W * 0.16, 68) * 1.0,
     color: "#FFFFFF",
-    letterSpacing: -3,
+    letterSpacing: -2.4,
   },
   heroTitleAccent: {
     fontFamily: "Inter_900Black",
-    fontSize: Math.min(SCREEN_W * 0.2, 84),
-    lineHeight: Math.min(SCREEN_W * 0.2, 84) * 0.98,
+    fontSize: Math.min(SCREEN_W * 0.16, 68),
+    lineHeight: Math.min(SCREEN_W * 0.16, 68) * 1.0,
     color: COLORS.neonViolet,
-    letterSpacing: -3,
+    letterSpacing: -2.4,
+  },
+  aiWordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: -4,
+  },
+  heroHeart: {
+    marginLeft: 4,
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.9,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
   },
   heroSub: {
     marginTop: SPACING.lg,
@@ -300,6 +363,21 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   ghostBtnText: { color: "#FFFFFF", fontFamily: FONTS.bodySemi, fontSize: 14 },
+
+  appleBtn: {
+    marginTop: SPACING.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    backgroundColor: "#000000",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+    paddingVertical: 16,
+    borderRadius: RADIUS.pill,
+    minHeight: 54,
+  },
+  appleBtnText: { color: "#FFFFFF", fontFamily: FONTS.bodyHeavy, fontSize: 15, letterSpacing: 0.3 },
 
   error: { marginTop: SPACING.md, color: COLORS.danger, fontSize: 13, textAlign: "center", fontFamily: FONTS.bodyMedium },
 
