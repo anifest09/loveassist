@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -176,14 +176,136 @@ function Slide1() {
 
 // ============================================================================
 // SLIDE 2 — Get Instant Replies (Phone + floating lavender bubbles)
-// MATCHES REFERENCE 1
+// Dynamically rotates through a curated pool of AI openers to feel "live"
 // ============================================================================
+const REPLY_POOL: string[] = [
+  "You can call me Leonardo Da Vinci, cause I'll paint your day better.",
+  "Is cuffing season over yet, or can I still get arrested by a cutie? 😏",
+  "Honestly, my Saturday plans just got way more interesting because of you.",
+  "Okay your taste in music is dangerous — recommend me one song and I'll judge you fairly. 🎧",
+  "Quick question: are you a Hinge philosopher or just secretly funny? Need to know what I'm working with.",
+  "Saw you like ramen. Hot take — is pineapple on ramen a war crime or genius? 🍜",
+  "Be honest — your camera roll is 90% sunsets and 10% your dog, isn't it? 📸",
+  "If I had to guess your green flag I'd say… you actually reply to messages. Game-changer.",
+  "Plot twist: I came here to lurk and your profile just ruined my night in the best way.",
+  "Coffee, cocktails, or a walk-and-talk? Pick your fighter. ☕",
+  "Your bio said 'love a deep convo' — so… aliens, real or PR stunt? 👽",
+  "I was scrolling, then I stopped. That's a compliment, by the way.",
+  "Two truths and a lie: you take great photos, you can cook, and you definitely text first. Which one is the lie? 🤔",
+  "If we matched on a Tuesday it's basically destiny. I don't make the rules. ✨",
+];
+
+function pickThreeFromPool(): string[] {
+  // Shuffle a shallow copy + take first 3 (Fisher-Yates lite)
+  const arr = [...REPLY_POOL];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, 3);
+}
+
+// Single live bubble — fades + slides on text change to feel auto-generated
+function LiveBubble({
+  text,
+  style,
+  floatStyle,
+  enterDelay,
+}: {
+  text: string;
+  style: any;
+  floatStyle: any;
+  enterDelay: number;
+}) {
+  const opacity = useSharedValue(0);
+  const slide = useSharedValue(8);
+  useEffect(() => {
+    opacity.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) });
+    slide.value = withTiming(0, { duration: 420, easing: Easing.out(Easing.cubic) });
+    // animate to invisible briefly before next text mounts via key change
+  }, [text, opacity, slide]);
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: slide.value }],
+  }));
+  return (
+    <Animated.View
+      entering={FadeInUp.duration(600).delay(enterDelay)}
+      style={[styles.lavenderBubble, style, floatStyle]}
+    >
+      <LinearGradient
+        colors={["rgba(196,181,253,0.95)", "rgba(167,139,250,0.85)"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <Animated.Text style={[styles.lavenderBubbleText, animStyle]} numberOfLines={2}>
+        {text}
+      </Animated.Text>
+      <View style={styles.copyMini}>
+        <Ionicons name="copy-outline" size={12} color="#FFFFFF" />
+      </View>
+    </Animated.View>
+  );
+}
+
+// "✨ AI generating" live pill — small dots pulse to imply real-time generation
+function LiveGeneratingPill() {
+  const d1 = useSharedValue(0.3);
+  const d2 = useSharedValue(0.3);
+  const d3 = useSharedValue(0.3);
+  useEffect(() => {
+    const cfg = { duration: 480, easing: Easing.inOut(Easing.quad) };
+    d1.value = withRepeat(withSequence(withTiming(1, cfg), withTiming(0.3, cfg)), -1, false);
+    d2.value = withDelay(160, withRepeat(withSequence(withTiming(1, cfg), withTiming(0.3, cfg)), -1, false));
+    d3.value = withDelay(320, withRepeat(withSequence(withTiming(1, cfg), withTiming(0.3, cfg)), -1, false));
+  }, [d1, d2, d3]);
+  const s1 = useAnimatedStyle(() => ({ opacity: d1.value }));
+  const s2 = useAnimatedStyle(() => ({ opacity: d2.value }));
+  const s3 = useAnimatedStyle(() => ({ opacity: d3.value }));
+  return (
+    <View style={styles.livePill}>
+      <Ionicons name="sparkles" size={11} color="#FBCFE8" />
+      <Text style={styles.livePillText}>AI generating</Text>
+      <View style={styles.liveDotsRow}>
+        <Animated.View style={[styles.liveDot, s1]} />
+        <Animated.View style={[styles.liveDot, s2]} />
+        <Animated.View style={[styles.liveDot, s3]} />
+      </View>
+    </View>
+  );
+}
+
 function Slide2() {
   const b1 = useFloat(0, 2800, 10);
   const b2 = useFloat(280, 3000, 14);
   const b3 = useFloat(560, 3200, 12);
   const phoneFloat = useFloat(0, 4200, 8);
   const glow = usePulse(0, 2400);
+
+  // Pick a fresh 3 on mount + auto-rotate every 3.6s
+  const [bubbles, setBubbles] = useState<string[]>(() => pickThreeFromPool());
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setBubbles((prev) => {
+        // Pick 3 new openers that don't fully overlap with previous (avoid stale repeats)
+        let next = pickThreeFromPool();
+        let attempts = 0;
+        while (
+          attempts < 4 &&
+          next[0] === prev[0] &&
+          next[1] === prev[1] &&
+          next[2] === prev[2]
+        ) {
+          next = pickThreeFromPool();
+          attempts++;
+        }
+        return next;
+      });
+    }, 3600);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <View style={styles.slide}>
@@ -193,6 +315,8 @@ function Slide2() {
       <Animated.Text entering={FadeIn.duration(500).delay(120)} style={styles.slideSubTop}>
         Get intelligent, context-aware responses that keep your conversations flowing naturally.
       </Animated.Text>
+
+      <LiveGeneratingPill />
 
       <View style={styles.illoBoxBig}>
         <Animated.View style={[styles.glowBeam, glow]} pointerEvents="none">
@@ -212,60 +336,29 @@ function Slide2() {
           <View style={styles.phoneNotchPill} />
         </Animated.View>
 
-        {/* Floating lavender chat bubbles */}
-        <Animated.View
-          entering={FadeInUp.duration(600).delay(200)}
-          style={[styles.lavenderBubble, { top: 80, left: 20 }, b1]}
-        >
-          <LinearGradient
-            colors={["rgba(196,181,253,0.95)", "rgba(167,139,250,0.85)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <Text style={styles.lavenderBubbleText} numberOfLines={2}>
-            You can call me Leonardo Da Vinci, cause I&apos;ll paint your day better.
-          </Text>
-          <View style={styles.copyMini}>
-            <Ionicons name="copy-outline" size={12} color="#FFFFFF" />
-          </View>
-        </Animated.View>
-
-        <Animated.View
-          entering={FadeInUp.duration(600).delay(350)}
-          style={[styles.lavenderBubble, { top: 150, left: 36 }, b2]}
-        >
-          <LinearGradient
-            colors={["rgba(196,181,253,0.95)", "rgba(167,139,250,0.85)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <Text style={styles.lavenderBubbleText} numberOfLines={2}>
-            Is cuffing season over yet, or can I still get arrested by a cutie? 😏
-          </Text>
-          <View style={styles.copyMini}>
-            <Ionicons name="copy-outline" size={12} color="#FFFFFF" />
-          </View>
-        </Animated.View>
-
-        <Animated.View
-          entering={FadeInUp.duration(600).delay(500)}
-          style={[styles.lavenderBubble, { top: 220, left: 28 }, b3]}
-        >
-          <LinearGradient
-            colors={["rgba(196,181,253,0.95)", "rgba(167,139,250,0.85)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <Text style={styles.lavenderBubbleText} numberOfLines={2}>
-            Honestly, my Saturday plans just got way more interesting because of you.
-          </Text>
-          <View style={styles.copyMini}>
-            <Ionicons name="copy-outline" size={12} color="#FFFFFF" />
-          </View>
-        </Animated.View>
+        {/* Dynamically generated lavender chat bubbles
+            key={bubbles[i]} forces React to remount when text changes, re-triggering the entrance animation */}
+        <LiveBubble
+          key={`b1-${bubbles[0]}`}
+          text={bubbles[0]}
+          style={{ top: 80, left: 20 }}
+          floatStyle={b1}
+          enterDelay={0}
+        />
+        <LiveBubble
+          key={`b2-${bubbles[1]}`}
+          text={bubbles[1]}
+          style={{ top: 150, left: 36 }}
+          floatStyle={b2}
+          enterDelay={120}
+        />
+        <LiveBubble
+          key={`b3-${bubbles[2]}`}
+          text={bubbles[2]}
+          style={{ top: 220, left: 28 }}
+          floatStyle={b3}
+          enterDelay={240}
+        />
       </View>
     </View>
   );
@@ -739,6 +832,38 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: SPACING.md,
     paddingHorizontal: SPACING.md,
+  },
+  // Live "AI generating" pill — sits above the floating bubbles
+  livePill: {
+    alignSelf: "center",
+    marginTop: SPACING.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.pill,
+    backgroundColor: "rgba(236,72,153,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(236,72,153,0.32)",
+  },
+  livePillText: {
+    fontFamily: FONTS.bodyHeavy,
+    fontSize: 10,
+    color: "#FBCFE8",
+    letterSpacing: 1.2,
+  },
+  liveDotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginLeft: 2,
+  },
+  liveDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#FBCFE8",
   },
 
   // ----- Slide 1: Profile cards (row layout)
