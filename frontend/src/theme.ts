@@ -1,62 +1,82 @@
-// LoveAssist AI – Premium theme system
-// Vibe: Warm romantic luxury — cream + rose-gold + ink + champagne gold
+// LoveAssist AI – "RIZZ" Dark Theme
+// Vibe: Pitch-black backgrounds · violet glow · neon pink accents · heavy bold Inter.
+// NOTE: Legacy color keys (rose, blush, gold, etc.) are preserved but remapped to dark
+// RIZZ values so older screens auto-inherit the new aesthetic without breaking.
 
 export const COLORS = {
   // Surfaces
-  bgBase: "#FBF7F2",        // warm cream
-  bgSurface: "#F3EBE0",     // soft cream/beige
-  bgSurfaceAlt: "#EFE5D6",  // slightly deeper cream
-  bgInk: "#16140F",         // luxe near-black
-  bgInkSoft: "#22201A",
-  bgPremium: "#16140F",     // dark hero base
-  bgPremiumSoft: "#2B271F",
+  bgBase: "#0A0A0F",        // deep black
+  bgSurface: "#14141F",     // dark glass card
+  bgSurfaceAlt: "#1C1C2A",  // raised surface
+  bgInk: "#000000",         // pure black (CTAs etc.)
+  bgInkSoft: "#0A0A0F",
+  bgPremium: "#0A0A0F",
+  bgPremiumSoft: "#1A1428",
 
   // Text
-  textPrimary: "#1C1A14",
-  textSecondary: "#6B655B",
-  textMuted: "#9A9388",
-  textInverse: "#FBF7F2",
-  textInverseSoft: "rgba(251,247,242,0.78)",
+  textPrimary: "#FFFFFF",
+  textSecondary: "#A1A1AA",
+  textMuted: "#71717A",
+  textInverse: "#FFFFFF",
+  textInverseSoft: "rgba(255,255,255,0.78)",
 
-  // Accents
-  rose: "#B14A56",          // deep rose
-  roseDeep: "#8A3641",
-  roseSoft: "#E8B7AE",
-  blush: "#F2D8D0",
-  terracotta: "#C9603F",
-  copper: "#A45A3C",
+  // Accents (legacy "rose" now violet glow)
+  rose: "#A78BFA",          // violet glow (primary)
+  roseDeep: "#7C3AED",
+  roseSoft: "#C4B5FD",
+  blush: "#1F1A33",         // dark violet tinted surface
+  terracotta: "#EC4899",    // neon pink
+  copper: "#F472B6",
 
-  // Premium metals
-  gold: "#C8A574",          // champagne gold
-  goldBright: "#E0BE85",
-  goldDeep: "#9A7B49",
+  // Legacy "gold/premium" now neon pink/violet
+  gold: "#EC4899",
+  goldBright: "#F472B6",
+  goldDeep: "#DB2777",
 
-  // Lines
-  sandBorder: "#E5DFD2",
-  sandBorderDark: "#D4CCB8",
-  inkBorder: "rgba(28,26,20,0.10)",
+  // Lines (subtle violet hairlines on black)
+  sandBorder: "rgba(139,92,246,0.16)",
+  sandBorderDark: "rgba(139,92,246,0.32)",
+  inkBorder: "rgba(255,255,255,0.10)",
 
   // System
-  success: "#5E7A4D",
-  danger: "#C24A4A",
+  success: "#10B981",
+  danger: "#F87171",
+
+  // RIZZ-specific extras
+  neonViolet: "#8B5CF6",
+  neonPink: "#EC4899",
+  neonGlow: "rgba(139,92,246,0.55)",
+  glassDark: "rgba(20,20,31,0.78)",
+  glassLight: "rgba(255,255,255,0.06)",
+
+  // Pastel paywall sheet
+  pastelPink: "#FBCFE8",
+  pastelBlue: "#DBEAFE",
+  pastelLavender: "#E9D5FF",
 };
 
 // Gradient stops
 export const GRADIENTS = {
-  hero: ["#1C1A14", "#3A2A24", "#7A463E"] as const, // ink → mocha → rose
-  rose: ["#B14A56", "#C9603F"] as const,
-  roseDeep: ["#8A3641", "#B14A56"] as const,
-  gold: ["#E0BE85", "#9A7B49"] as const,
-  premium: ["#1A1812", "#2B271F", "#3A2D22"] as const,
-  cream: ["#FBF7F2", "#F3EBE0"] as const,
-  cardCream: ["#FFFBF4", "#F3EBE0"] as const,
-  cardRose: ["#FCE5DE", "#F4CFC4"] as const,
+  hero: ["#0A0A0F", "#1F1442", "#3B1A6B"] as const,           // black → deep violet
+  rose: ["#8B5CF6", "#EC4899"] as const,                       // violet → neon pink
+  roseDeep: ["#7C3AED", "#DB2777"] as const,
+  gold: ["#F472B6", "#A78BFA"] as const,
+  premium: ["#0A0A0F", "#1A1428", "#2D1B4E"] as const,
+  cream: ["#0A0A0F", "#14141F"] as const,
+  cardCream: ["#14141F", "#1C1C2A"] as const,
+  cardRose: ["#2D1B4E", "#14141F"] as const,
+  pastelSheet: ["#FBCFE8", "#E9D5FF", "#DBEAFE"] as const,    // paywall sheet
+  glowPurple: ["rgba(139,92,246,0.4)", "transparent"] as const,
+  glowPink: ["rgba(236,72,153,0.35)", "transparent"] as const,
 };
 
+// Fonts — Inter only (heavy bold), no serif.
+// "display" maps to Inter ExtraBold so legacy <Text style={{fontFamily: FONTS.display}}/>
+// renders heavy bold instead of Playfair serif.
 export const FONTS = {
-  display: "PlayfairDisplay_700Bold",
-  displayMedium: "PlayfairDisplay_600SemiBold",
-  displayItalic: "PlayfairDisplay_400Regular_Italic",
+  display: "Inter_800ExtraBold",
+  displayMedium: "Inter_700Bold",
+  displayItalic: "Inter_700Bold",   // legacy alias — no italic in RIZZ aesthetic
   body: "Inter_400Regular",
   bodyMedium: "Inter_500Medium",
   bodySemi: "Inter_600SemiBold",
@@ -85,25 +105,32 @@ export const SPACING = {
 
 export const SHADOWS = {
   card: {
-    shadowColor: "#1C1A14",
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    shadowColor: "#8B5CF6",
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
   hero: {
-    shadowColor: "#1C1A14",
-    shadowOpacity: 0.18,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 10,
+    shadowColor: "#8B5CF6",
+    shadowOpacity: 0.35,
+    shadowRadius: 32,
+    shadowOffset: { width: 0, height: 16 },
+    elevation: 12,
   },
   soft: {
-    shadowColor: "#1C1A14",
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    shadowColor: "#000000",
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  pinkGlow: {
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.45,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
 };
 
@@ -114,17 +141,17 @@ export const MODE_META: Record<
   normal: {
     label: "Normal",
     emoji: "✨",
-    description: "Warm & natural",
+    description: "Chill & natural",
   },
   flirty: {
     label: "Flirty",
     emoji: "💋",
-    description: "Playful & romantic",
+    description: "Playful & bold",
   },
   exclusive: {
     label: "Exclusive",
-    emoji: "🥂",
-    description: "Premium voice",
+    emoji: "🔥",
+    description: "Rizz-tier voice",
   },
 };
 

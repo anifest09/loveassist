@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import * as WebBrowser from "expo-web-browser";
@@ -7,12 +7,24 @@ import * as Linking from "expo-linking";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
 
 import { useAuth } from "@/src/auth-context";
-import { COLORS, RADIUS, SPACING, FONTS, GRADIENTS } from "@/src/theme";
+import { storage } from "@/src/utils/storage";
+import { COLORS, RADIUS, SPACING, FONTS } from "@/src/theme";
 
 WebBrowser.maybeCompleteAuthSession();
+
+const ONBOARDING_KEY = "loveassist_seen_onboarding";
+const { width: SCREEN_W } = Dimensions.get("window");
 
 function parseSessionId(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -23,13 +35,39 @@ function parseSessionId(url: string | null | undefined): string | null {
   return null;
 }
 
+async function routeAfterLogin(router: ReturnType<typeof useRouter>) {
+  const seen = await storage.getItem<boolean>(ONBOARDING_KEY, false);
+  if (seen) router.replace("/(tabs)");
+  else router.replace("/onboarding");
+}
+
 export default function LoginScreen() {
   const router = useRouter();
   const { signInGoogleWithSessionId, signInDev, user, loading } = useAuth();
   const [busy, setBusy] = useState<"google" | "dev" | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  useEffect(() => { if (!loading && user) router.replace("/(tabs)"); }, [loading, user, router]);
+  // Floating orb animations
+  const orb1 = useSharedValue(0);
+  const orb2 = useSharedValue(0);
+  useEffect(() => {
+    orb1.value = withRepeat(withTiming(1, { duration: 4200, easing: Easing.inOut(Easing.quad) }), -1, true);
+    orb2.value = withRepeat(withTiming(1, { duration: 5400, easing: Easing.inOut(Easing.quad) }), -1, true);
+  }, [orb1, orb2]);
+  const orb1Style = useAnimatedStyle(() => ({
+    transform: [{ translateY: -10 + orb1.value * 20 }, { translateX: -8 + orb1.value * 16 }],
+    opacity: 0.5 + orb1.value * 0.25,
+  }));
+  const orb2Style = useAnimatedStyle(() => ({
+    transform: [{ translateY: 8 - orb2.value * 18 }, { translateX: 10 - orb2.value * 20 }],
+    opacity: 0.4 + orb2.value * 0.3,
+  }));
+
+  useEffect(() => {
+    if (!loading && user) {
+      (async () => { await routeAfterLogin(router); })();
+    }
+  }, [loading, user, router]);
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
@@ -41,7 +79,7 @@ export default function LoginScreen() {
           setBusy("google");
           await signInGoogleWithSessionId(sessionId);
           if (typeof window !== "undefined") window.history.replaceState(null, "", window.location.pathname);
-          router.replace("/(tabs)");
+          await routeAfterLogin(router);
         } catch (e: any) { setErrorMsg(e?.message ?? "Sign-in failed"); }
         finally { setBusy(null); }
       })();
@@ -61,7 +99,7 @@ export default function LoginScreen() {
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
       if (result.type === "success" && result.url) {
         const sessionId = parseSessionId(result.url);
-        if (sessionId) { await signInGoogleWithSessionId(sessionId); router.replace("/(tabs)"); return; }
+        if (sessionId) { await signInGoogleWithSessionId(sessionId); await routeAfterLogin(router); return; }
         setErrorMsg("Could not read session from redirect.");
       } else if (result.type === "cancel" || result.type === "dismiss") {} else { setErrorMsg("Authentication did not complete."); }
     } catch (e: any) { setErrorMsg(e?.message ?? "Sign-in failed"); }
@@ -74,79 +112,71 @@ export default function LoginScreen() {
     try {
       try { await Haptics.selectionAsync(); } catch {}
       await signInDev("Demo User", `demo+${Date.now().toString(36)}@loveassist.ai`);
-      router.replace("/(tabs)");
+      await routeAfterLogin(router);
     } catch (e: any) { setErrorMsg(e?.message ?? "Demo sign-in failed"); }
     finally { setBusy(null); }
   };
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={GRADIENTS.hero} start={{ x: 0.1, y: 0.1 }} end={{ x: 0.9, y: 0.95 }} style={styles.hero}>
-        <View style={[styles.glow, styles.glowA]} />
-        <View style={[styles.glow, styles.glowB]} />
-        <View style={[styles.glow, styles.glowC]} />
-        <LinearGradient colors={["transparent", "rgba(22,20,15,0.85)"]} locations={[0.4, 1]} style={StyleSheet.absoluteFill} />
-        <SafeAreaView style={styles.safe} edges={["top"]}>
-          <Animated.View entering={FadeIn.duration(600)} style={styles.brandRow}>
-            <View style={styles.brandBadge}>
-              <Ionicons name="heart" size={11} color={COLORS.rose} />
-              <Text style={styles.brandText}>LoveAssist</Text>
-              <View style={styles.aiPill}><Text style={styles.aiPillText}>AI</Text></View>
-            </View>
-          </Animated.View>
-          <Animated.View entering={FadeIn.duration(900).delay(150)} style={styles.heroCenter}>
-            <View style={styles.bigHeart}>
-              <Ionicons name="heart" size={56} color={COLORS.rose} />
-              <View style={styles.heartGlow} />
-            </View>
-            <Text style={styles.heroLabel}>YOUR PERSONAL</Text>
-            <Text style={styles.heroBigText}>Conversation{"\n"}<Text style={styles.heroBigItalic}>Wingman</Text></Text>
-          </Animated.View>
-        </SafeAreaView>
-      </LinearGradient>
+      {/* Animated violet/pink glow orbs */}
+      <Animated.View style={[styles.orb, styles.orbViolet, orb1Style]} pointerEvents="none">
+        <LinearGradient colors={["rgba(139,92,246,0.6)", "transparent"]} style={StyleSheet.absoluteFill} />
+      </Animated.View>
+      <Animated.View style={[styles.orb, styles.orbPink, orb2Style]} pointerEvents="none">
+        <LinearGradient colors={["rgba(236,72,153,0.55)", "transparent"]} style={StyleSheet.absoluteFill} />
+      </Animated.View>
 
-      <SafeAreaView edges={["bottom"]} style={styles.sheetWrap}>
-        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.sheet}>
-          <View style={styles.handle} />
-          <Text style={styles.eyebrow}>YOUR CONVERSATION WINGMAN</Text>
-          <Text style={styles.headline}>
-            Find the <Text style={styles.headlineItalic}>perfect</Text>{"\n"}words, every time.
-          </Text>
-          <Text style={styles.sub}>
-            Personal AI that crafts replies, openers, and screenshot-aware messages — in your voice, in any tone.
-          </Text>
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <Animated.View entering={FadeIn.duration(500)} style={styles.brandRow}>
+          <View style={styles.brandBadge}>
+            <View style={styles.brandDot} />
+            <Text style={styles.brandText}>LOVEASSIST</Text>
+            <View style={styles.aiPill}><Text style={styles.aiPillText}>AI</Text></View>
+          </View>
+        </Animated.View>
 
-          <View style={styles.featuresRow}>
+        <Animated.View entering={FadeIn.duration(700).delay(100)} style={styles.heroCenter}>
+          <Text style={styles.eyebrow}>YOUR PERSONAL</Text>
+          <Text style={styles.heroTitle}>RIZZ.</Text>
+          <Text style={styles.heroTitleAccent}>Unlocked.</Text>
+          <Text style={styles.heroSub}>
+            AI-powered replies that hit different — for crushes, matches, and DMs you can&apos;t mess up.
+          </Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.bottomBlock}>
+          <View style={styles.featureRow}>
             {[
-              { i: "chatbubbles" as const, t: "Smart replies" },
-              { i: "image-outline" as const, t: "Chat reader" },
-              { i: "language" as const, t: "20 languages · Live translate" },
+              { i: "chatbubbles" as const, t: "Smart Replies" },
+              { i: "scan" as const, t: "Screenshot AI" },
+              { i: "language" as const, t: "20 Languages" },
             ].map((f) => (
-              <View key={f.t} style={styles.feature}>
-                <View style={styles.featureIcon}><Ionicons name={f.i} size={14} color={COLORS.rose} /></View>
-                <Text style={styles.featureText}>{f.t}</Text>
+              <View key={f.t} style={styles.featureChip}>
+                <Ionicons name={f.i} size={12} color={COLORS.neonPink} />
+                <Text style={styles.featureChipText}>{f.t}</Text>
               </View>
             ))}
           </View>
 
-          <TouchableOpacity style={styles.googleBtn} onPress={handleGoogle} activeOpacity={0.92} disabled={busy !== null} testID="login-google-button">
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleGoogle} activeOpacity={0.9} disabled={busy !== null} testID="login-google-button">
             {busy === "google" ? (
-              <ActivityIndicator color={COLORS.textInverse} />
+              <ActivityIndicator color="#0A0A0F" />
             ) : (
               <>
-                <Ionicons name="logo-google" size={18} color={COLORS.textInverse} />
-                <Text style={styles.googleText}>Continue with Google</Text>
+                <Ionicons name="logo-google" size={18} color="#0A0A0F" />
+                <Text style={styles.primaryBtnText}>Continue with Google</Text>
               </>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.demoBtn} onPress={handleDev} activeOpacity={0.92} disabled={busy !== null} testID="login-demo-button">
+          <TouchableOpacity style={styles.ghostBtn} onPress={handleDev} activeOpacity={0.9} disabled={busy !== null} testID="login-demo-button">
             {busy === "dev" ? (
               <ActivityIndicator color={COLORS.textPrimary} />
             ) : (
               <>
-                <Ionicons name="flash" size={16} color={COLORS.rose} />
-                <Text style={styles.demoText}>Try a demo account</Text>
+                <Ionicons name="flash" size={15} color={COLORS.neonPink} />
+                <Text style={styles.ghostBtnText}>Try Demo</Text>
               </>
             )}
           </TouchableOpacity>
@@ -154,8 +184,8 @@ export default function LoginScreen() {
           {errorMsg && <Text style={styles.error} testID="login-error">{errorMsg}</Text>}
 
           <View style={styles.trialPill}>
-            <Ionicons name="gift-outline" size={12} color={COLORS.goldDeep} />
-            <Text style={styles.trialText}>Includes 7-day Premium trial — no card needed</Text>
+            <Ionicons name="gift-outline" size={11} color={COLORS.neonPink} />
+            <Text style={styles.trialText}>7-day Premium trial — no card needed</Text>
           </View>
         </Animated.View>
       </SafeAreaView>
@@ -164,124 +194,127 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bgInk },
-  hero: { height: "55%", width: "100%", overflow: "hidden" },
-  glow: { position: "absolute", borderRadius: 9999, opacity: 0.65 },
-  glowA: { width: 280, height: 280, backgroundColor: "#7A463E", top: -80, right: -100 },
-  glowB: { width: 220, height: 220, backgroundColor: "#B14A56", top: 80, left: -90, opacity: 0.45 },
-  glowC: { width: 180, height: 180, backgroundColor: "#C8A574", bottom: -40, right: 40, opacity: 0.28 },
-  safe: { flex: 1 },
-  brandRow: { paddingTop: SPACING.md, paddingHorizontal: SPACING.lg },
+  container: { flex: 1, backgroundColor: "#0A0A0F", overflow: "hidden" },
+  safe: { flex: 1, paddingHorizontal: SPACING.lg },
+
+  orb: {
+    position: "absolute",
+    borderRadius: 9999,
+    overflow: "hidden",
+  },
+  orbViolet: { width: 360, height: 360, top: -80, right: -120 },
+  orbPink: { width: 320, height: 320, bottom: 60, left: -120 },
+
+  brandRow: { paddingTop: SPACING.sm },
   brandBadge: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(251,247,242,0.12)",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
-    borderColor: "rgba(251,247,242,0.18)",
+    borderColor: "rgba(255,255,255,0.10)",
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: RADIUS.pill,
   },
-  brandText: { color: COLORS.textInverse, fontFamily: FONTS.bodyBold, fontSize: 12, letterSpacing: 0.3 },
-  aiPill: { backgroundColor: COLORS.goldBright, borderRadius: 4, paddingHorizontal: 5, marginLeft: 4 },
-  aiPillText: { color: COLORS.textPrimary, fontFamily: FONTS.bodyHeavy, fontSize: 9, letterSpacing: 0.5 },
+  brandDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.neonPink },
+  brandText: { color: "#FFFFFF", fontFamily: FONTS.bodyHeavy, fontSize: 11, letterSpacing: 2 },
+  aiPill: { backgroundColor: COLORS.neonPink, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 },
+  aiPillText: { color: "#0A0A0F", fontFamily: FONTS.bodyHeavy, fontSize: 9, letterSpacing: 0.5 },
 
-  heroCenter: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxxl },
-  bigHeart: {
-    width: 96, height: 96, borderRadius: 48,
-    backgroundColor: "rgba(177,74,86,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(177,74,86,0.5)",
-    alignItems: "center", justifyContent: "center",
-    marginBottom: SPACING.lg,
-  },
-  heartGlow: {
-    position: "absolute",
-    width: 140, height: 140, borderRadius: 70,
-    backgroundColor: "rgba(200,165,116,0.10)",
-  },
-  heroLabel: {
+  heroCenter: { flex: 1, justifyContent: "center", paddingTop: SPACING.xl },
+  eyebrow: {
     fontFamily: FONTS.bodyHeavy,
-    fontSize: 10,
-    color: COLORS.goldBright,
-    letterSpacing: 3,
+    fontSize: 11,
+    color: COLORS.neonPink,
+    letterSpacing: 3.5,
     marginBottom: SPACING.sm,
   },
-  heroBigText: {
-    fontFamily: FONTS.display,
-    fontSize: 40,
-    color: COLORS.textInverse,
-    textAlign: "center",
-    lineHeight: 44,
-    letterSpacing: -0.5,
+  heroTitle: {
+    fontFamily: "Inter_900Black",
+    fontSize: Math.min(SCREEN_W * 0.2, 84),
+    lineHeight: Math.min(SCREEN_W * 0.2, 84) * 0.98,
+    color: "#FFFFFF",
+    letterSpacing: -3,
   },
-  heroBigItalic: { fontFamily: FONTS.displayItalic, color: COLORS.roseSoft },
+  heroTitleAccent: {
+    fontFamily: "Inter_900Black",
+    fontSize: Math.min(SCREEN_W * 0.2, 84),
+    lineHeight: Math.min(SCREEN_W * 0.2, 84) * 0.98,
+    color: COLORS.neonViolet,
+    letterSpacing: -3,
+  },
+  heroSub: {
+    marginTop: SPACING.lg,
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    lineHeight: 21,
+    maxWidth: 340,
+  },
 
-  sheetWrap: { position: "absolute", bottom: 0, left: 0, right: 0 },
-  sheet: {
-    backgroundColor: COLORS.bgBase,
-    borderTopLeftRadius: 36,
-    borderTopRightRadius: 36,
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.xl,
-  },
-  handle: {
-    alignSelf: "center",
-    width: 44, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.sandBorderDark,
-    marginBottom: SPACING.lg,
-  },
-  eyebrow: { fontFamily: FONTS.bodyHeavy, fontSize: 10, color: COLORS.rose, letterSpacing: 2.5, marginBottom: SPACING.sm },
-  headline: { fontFamily: FONTS.display, fontSize: 30, color: COLORS.textPrimary, lineHeight: 36, letterSpacing: -0.5 },
-  headlineItalic: { fontFamily: FONTS.displayItalic, color: COLORS.rose },
-  sub: { marginTop: SPACING.sm, fontFamily: FONTS.body, fontSize: 13, color: COLORS.textSecondary, lineHeight: 20 },
-  featuresRow: { flexDirection: "row", gap: SPACING.sm, marginTop: SPACING.lg, marginBottom: SPACING.lg },
-  feature: {
-    flex: 1,
+  bottomBlock: { paddingBottom: SPACING.md },
+  featureRow: { flexDirection: "row", gap: 8, marginBottom: SPACING.lg, flexWrap: "wrap" },
+  featureChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
     borderRadius: RADIUS.pill,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
-    borderColor: COLORS.sandBorder,
-    backgroundColor: COLORS.bgSurface,
+    borderColor: "rgba(255,255,255,0.10)",
   },
-  featureIcon: {
-    width: 22, height: 22, borderRadius: 11,
-    backgroundColor: COLORS.blush,
-    alignItems: "center", justifyContent: "center",
-  },
-  featureText: { fontSize: 11, fontFamily: FONTS.bodySemi, color: COLORS.textPrimary, flexShrink: 1 },
-  googleBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
+  featureChipText: { fontSize: 11, fontFamily: FONTS.bodySemi, color: "#FFFFFF" },
+
+  primaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.sm,
-    backgroundColor: COLORS.bgInk,
+    backgroundColor: "#FFFFFF",
     paddingVertical: 16,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.pill,
     minHeight: 54,
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
-  googleText: { color: COLORS.textInverse, fontFamily: FONTS.bodyBold, fontSize: 15 },
-  demoBtn: {
+  primaryBtnText: { color: "#0A0A0F", fontFamily: FONTS.bodyHeavy, fontSize: 15, letterSpacing: 0.3 },
+
+  ghostBtn: {
     marginTop: SPACING.sm,
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.sm,
-    backgroundColor: COLORS.bgSurface,
-    borderWidth: 1, borderColor: COLORS.sandBorder,
-    paddingVertical: 14, borderRadius: RADIUS.lg, minHeight: 50,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    paddingVertical: 14,
+    borderRadius: RADIUS.pill,
+    minHeight: 50,
   },
-  demoText: { color: COLORS.textPrimary, fontFamily: FONTS.bodySemi, fontSize: 14 },
+  ghostBtnText: { color: "#FFFFFF", fontFamily: FONTS.bodySemi, fontSize: 14 },
+
   error: { marginTop: SPACING.md, color: COLORS.danger, fontSize: 13, textAlign: "center", fontFamily: FONTS.bodyMedium },
+
   trialPill: {
-    marginTop: SPACING.lg, alignSelf: "center",
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 12, paddingVertical: 6,
-    backgroundColor: "rgba(200,165,116,0.14)",
+    marginTop: SPACING.lg,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "rgba(236,72,153,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(236,72,153,0.25)",
     borderRadius: RADIUS.pill,
   },
-  trialText: { fontSize: 11, fontFamily: FONTS.bodySemi, color: COLORS.goldDeep },
+  trialText: { fontSize: 11, fontFamily: FONTS.bodySemi, color: COLORS.copper, letterSpacing: 0.2 },
 });

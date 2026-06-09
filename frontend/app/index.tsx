@@ -2,7 +2,10 @@ import { useEffect } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/src/auth-context";
+import { storage } from "@/src/utils/storage";
 import { COLORS } from "@/src/theme";
+
+const ONBOARDING_KEY = "loveassist_seen_onboarding";
 
 export default function Index() {
   const router = useRouter();
@@ -10,16 +13,20 @@ export default function Index() {
 
   useEffect(() => {
     if (loading) return;
-    if (user) {
-      router.replace("/(tabs)");
-    } else {
-      router.replace("/login");
-    }
+    (async () => {
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+      const seen = await storage.getItem<boolean>(ONBOARDING_KEY, false);
+      if (seen) router.replace("/(tabs)");
+      else router.replace("/onboarding");
+    })();
   }, [loading, user, router]);
 
   return (
     <View style={styles.container} testID="auth-gate-loading">
-      <ActivityIndicator color={COLORS.terracotta} />
+      <ActivityIndicator color={COLORS.neonPink} />
     </View>
   );
 }

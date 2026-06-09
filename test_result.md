@@ -332,3 +332,44 @@ agent_communication:
         6) /api/ai/translate with explicit content => 422 SAFETY_BLOCKED.
         7) Regression: /api/ai/suggestions with language="ko" still returns Korean suggestions.
       No need to retest auth/history/subscription exhaustively — quick smoke is fine.
+
+  - agent: "main"
+    message: |
+      ROUND 4 — RIZZ Dark UI Overhaul (frontend-only, no backend changes).
+      Theme overhaul (/app/frontend/src/theme.ts):
+        • Full dark palette: black backgrounds (#0A0A0F), violet glow (#8B5CF6),
+          neon pink (#EC4899). Legacy keys (rose/gold/blush/sandBorder) remapped
+          to dark RIZZ equivalents so existing screens auto-inherit.
+        • Stripped Playfair serif. FONTS.display now maps to Inter_800ExtraBold.
+          New Inter_900Black weight added via use-app-fonts.ts.
+        • New gradients: pastelSheet (pink->lavender->blue) for paywall,
+          glowPurple/glowPink for ambient halos.
+      New / Rewritten screens:
+        • login.tsx: black hero "RIZZ. Unlocked." with animated violet+pink orbs,
+          white pill Google CTA + ghost demo CTA + 7-day trial chip.
+        • NEW /app/frontend/app/onboarding.tsx: 4-step carousel with reanimated
+          floating cards.
+            S1 "Upload a Chat or Bio" — 3 Tinder-style profile cards (rotated stack).
+            S2 "Get Instant Replies" — floating gradient chat bubbles + copy chips.
+            S3 "EXCITED FOR LOVEASSIST?" — 5-star prompt + testimonial card.
+            S4 "Try LoveAssist Free" — phone mockup with 7-day badge.
+          One-time flag via storage key 'loveassist_seen_onboarding'. Skip routes
+          to /(tabs)/premium. Final CTA routes to /premium.
+        • app/index.tsx: auth-gate now also checks onboarding flag.
+        • (tabs)/premium.tsx: dark top section with 3 floating analysis cards
+          (Screenshot/Suggested/Translate) + violet glow halo, giant headline
+          "Ready to go PRO?" with violet accent. Bottom pastel pink->blue
+          gradient sheet with timeline (Today/Day 5/Day 7), trial toggle (default
+          ON), benefit chips, black pill CTA, Razorpay/PayPal alt buttons.
+        • (tabs)/_layout.tsx: tab bar with neonPink active accent on black bg.
+      All existing screens (Home, Suggest, Screenshot, First-message, Profile,
+      History) auto-inherit dark RIZZ via theme tokens — no per-screen rewrite
+      required. Visually verified via Playwright screenshots:
+        - Login dark hero ✓
+        - Onboarding S1+S4 floating cards ✓
+        - Paywall floating cards + pastel sheet ✓
+        - Home tabs with pink active accent ✓
+        - Suggest screen with violet/pink gradient mode buttons ✓
+        - Suggestion result cards (real AI replies) on dark surface ✓
+        - Profile (20 languages list) with pink-checked radio ✓
+      No backend changes. No need to retest backend. UI overhaul complete.
