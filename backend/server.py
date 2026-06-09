@@ -435,7 +435,7 @@ async def delete_account(authorization: Optional[str] = Header(None)):
     await db.user_sessions.delete_many({"user_id": user_id})
     await db.history.delete_many({"user_id": user_id})
     await db.subscriptions.delete_many({"user_id": user_id})
-    await db.users.delete_one({"id": user_id})
+    await db.users.delete_one({"user_id": user_id})
     return {"ok": True}
 
 
