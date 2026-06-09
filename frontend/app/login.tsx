@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Dimensions } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Dimensions, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import * as WebBrowser from "expo-web-browser";
@@ -48,6 +48,7 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState<"google" | "apple" | "dev" | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [appleAvailable, setAppleAvailable] = useState(false);
+  const [showAppleModal, setShowAppleModal] = useState(false);
 
   // Detect Apple Sign In availability (iOS only) — but the button is always shown
   useEffect(() => {
@@ -126,11 +127,11 @@ export default function LoginScreen() {
 
   const handleApple = async () => {
     setErrorMsg(null);
+    // On non-iOS (Web/Android preview) — Apple Sign-In can't run natively.
+    // Show our custom modal so the button feels fully alive on every platform.
     if (Platform.OS !== "ios" || !appleAvailable) {
-      setErrorMsg(
-        "Apple Sign-In is available only on iOS devices. Tap Google or Demo to continue.",
-      );
       try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch {}
+      setShowAppleModal(true);
       return;
     }
     setBusy("apple");
@@ -250,6 +251,57 @@ export default function LoginScreen() {
           </View>
         </Animated.View>
       </SafeAreaView>
+
+      {/* Apple Sign-In info modal (shown on web/Android since native flow needs iOS build) */}
+      <Modal
+        visible={showAppleModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAppleModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="logo-apple" size={28} color="#FFFFFF" />
+            </View>
+            <Text style={styles.modalTitle}>Apple Sign-In</Text>
+            <Text style={styles.modalBody}>
+              Apple Sign-In only runs on real iOS devices. It activates automatically once you generate an iOS build via the{" "}
+              <Text style={styles.modalBold}>Publish</Text> button (top-right).
+              {"\n\n"}For now, preview the full app with Demo or Google.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.modalPrimaryBtn}
+              onPress={() => { setShowAppleModal(false); handleDev(); }}
+              activeOpacity={0.9}
+              testID="apple-modal-demo"
+            >
+              <Ionicons name="flash" size={15} color="#0A0A0F" />
+              <Text style={styles.modalPrimaryText}>Continue with Demo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalSecondaryBtn}
+              onPress={() => { setShowAppleModal(false); handleGoogle(); }}
+              activeOpacity={0.9}
+              testID="apple-modal-google"
+            >
+              <Ionicons name="logo-google" size={15} color={COLORS.textPrimary} />
+              <Text style={styles.modalSecondaryText}>Continue with Google</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setShowAppleModal(false)}
+              activeOpacity={0.9}
+              testID="apple-modal-cancel"
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -396,6 +448,102 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodyMedium,
     fontSize: 11,
     opacity: 0.7,
+  },
+
+  // Apple modal (shown when user taps Apple Sign-In on a non-iOS device)
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.78)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: SPACING.lg,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 380,
+    backgroundColor: "#15101F",
+    borderRadius: RADIUS.xl,
+    paddingVertical: SPACING.xl,
+    paddingHorizontal: SPACING.lg,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+  },
+  modalIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  modalTitle: {
+    fontFamily: FONTS.displayBold,
+    fontSize: 19,
+    color: "#FFFFFF",
+    marginBottom: 8,
+    letterSpacing: -0.2,
+  },
+  modalBody: {
+    fontFamily: FONTS.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    marginBottom: SPACING.lg,
+    paddingHorizontal: 4,
+  },
+  modalBold: { fontFamily: FONTS.bodyBold, color: COLORS.textPrimary },
+  modalPrimaryBtn: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: RADIUS.pill,
+    paddingVertical: 14,
+    marginTop: 4,
+    minHeight: 50,
+  },
+  modalPrimaryText: {
+    fontFamily: FONTS.bodyHeavy,
+    fontSize: 14.5,
+    color: "#0A0A0F",
+    letterSpacing: 0.2,
+  },
+  modalSecondaryBtn: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: RADIUS.pill,
+    paddingVertical: 14,
+    marginTop: 10,
+    minHeight: 50,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  modalSecondaryText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    letterSpacing: 0.2,
+  },
+  modalCancelBtn: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  modalCancelText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    color: COLORS.textSecondary,
   },
 
   error: { marginTop: SPACING.md, color: COLORS.danger, fontSize: 13, textAlign: "center", fontFamily: FONTS.bodyMedium },
