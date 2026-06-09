@@ -1,34 +1,42 @@
-import { useEffect } from "react";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { useEffect, useState } from "react";
+import { View, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/src/auth-context";
 import { storage } from "@/src/utils/storage";
 import { COLORS } from "@/src/theme";
+import SplashIntro from "@/src/components/SplashIntro";
 
 const ONBOARDING_KEY = "loveassist_seen_onboarding";
 
 export default function Index() {
   const router = useRouter();
   const { loading, user } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
+  const [destination, setDestination] = useState<string | null>(null);
 
+  // Decide destination as soon as auth loads
   useEffect(() => {
     if (loading) return;
     (async () => {
       const seen = await storage.getItem<boolean>(ONBOARDING_KEY, false);
       if (!user) {
-        // Show onboarding BEFORE login for new users
-        if (!seen) router.replace("/onboarding");
-        else router.replace("/login");
-        return;
+        setDestination(seen ? "/login" : "/onboarding");
+      } else {
+        setDestination("/(tabs)");
       }
-      // Logged in users go straight to app
-      router.replace("/(tabs)");
     })();
-  }, [loading, user, router]);
+  }, [loading, user]);
+
+  // Route once both splash + destination are ready
+  useEffect(() => {
+    if (splashDone && destination) {
+      router.replace(destination as any);
+    }
+  }, [splashDone, destination, router]);
 
   return (
     <View style={styles.container} testID="auth-gate-loading">
-      <ActivityIndicator color={COLORS.neonPink} />
+      <SplashIntro onDone={() => setSplashDone(true)} />
     </View>
   );
 }

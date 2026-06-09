@@ -1149,4 +1149,52 @@ const styles = StyleSheet.create({
     color: "#0A0A0F",
     letterSpacing: 0.3,
   },
+
+  // ===== SPLASH INTRO =====
+  splashOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 999,
+    elevation: 999,
+  },
+  splashGlow: {
+    position: "absolute",
+    width: 480, height: 480, borderRadius: 240,
+    overflow: "hidden",
+  },
+  splashRing: {
+    position: "absolute",
+    width: 360, height: 360, borderRadius: 180,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "rgba(236,72,153,0.45)",
+  },
+  splashHeart: {
+    width: 120, height: 120, borderRadius: 60,
+    alignItems: "center", justifyContent: "center",
+    overflow: "hidden",
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.85,
+    shadowRadius: 36,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 24,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  splashTextWrap: { marginTop: 32, alignItems: "center" },
+  splashBrand: {
+    fontFamily: "Inter_900Black",
+    fontSize: 44,
+    color: "#FFFFFF",
+    letterSpacing: -1.6,
+  },
+  splashTagline: {
+    marginTop: 4,
+    fontFamily: FONTS.bodyBold,
+    fontSize: 14,
+    color: COLORS.neonPink,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+  },
 });
