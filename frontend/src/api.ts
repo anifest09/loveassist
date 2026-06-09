@@ -260,4 +260,31 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ order_id }),
     }),
+
+  // ============ Admin ============
+  adminStats: () =>
+    request<{
+      total_users: number;
+      signups_today: number;
+      signups_yesterday: number;
+      signups_week: number;
+      signups_month: number;
+      active_sessions: number;
+      premium_users: number;
+      trial_users: number;
+      logins_today: number;
+      logins_week: number;
+      logins_total: number;
+      login_methods: { google: number; apple: number };
+      recent_signups: Array<{
+        email?: string;
+        name?: string;
+        created_at?: string;
+        google_sub?: string;
+        apple_sub?: string;
+      }>;
+      daily_signups: Array<{ date: string; count: number }>;
+      daily_logins: Array<{ date: string; count: number }>;
+      generated_at: string;
+    }>("/admin/stats"),
 };

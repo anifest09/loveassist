@@ -220,6 +220,25 @@ export default function ProfileTab() {
           <Text style={styles.logoutText}>Sign out</Text>
         </TouchableOpacity>
 
+        {/* Admin Dashboard — only visible to whitelisted admin accounts */}
+        {(user as any)?.is_admin && (
+          <TouchableOpacity
+            style={styles.adminBtn}
+            onPress={() => router.push("/admin")}
+            activeOpacity={0.85}
+            testID="profile-admin-link"
+          >
+            <View style={styles.adminIconWrap}>
+              <Ionicons name="shield-checkmark" size={16} color="#10B981" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.adminText}>Admin Dashboard</Text>
+              <Text style={styles.adminSub}>Login stats · user analytics · live signups</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={styles.deleteBtn}
           onPress={onDeleteAccount}
@@ -380,6 +399,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.rose,
     fontFamily: FONTS.bodyBold,
+  },
+  adminBtn: {
+    marginTop: SPACING.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.md,
+    paddingVertical: 14,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: "rgba(16,185,129,0.32)",
+    backgroundColor: "rgba(16,185,129,0.06)",
+  },
+  adminIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(16,185,129,0.16)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  adminText: {
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.bodyBold,
+  },
+  adminSub: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.body,
+    marginTop: 2,
   },
   deleteBtn: {
     marginTop: SPACING.md,

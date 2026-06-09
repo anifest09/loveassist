@@ -245,6 +245,62 @@ export default function AdminScreen() {
           </View>
         </Animated.View>
 
+        {/* Login event metrics — NEW */}
+        <Animated.View entering={FadeInDown.delay(320)} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Logins · activity</Text>
+            <View style={styles.livePillSmall}>
+              <View style={styles.liveDotSmall} />
+              <Text style={styles.livePillSmallText}>LIVE</Text>
+            </View>
+          </View>
+          <View style={styles.loginStatsRow}>
+            <View style={styles.loginStatCard}>
+              <Text style={styles.loginStatValue}>{fmtNum(stats.logins_today)}</Text>
+              <Text style={styles.loginStatLabel}>Today</Text>
+            </View>
+            <View style={styles.loginStatCard}>
+              <Text style={styles.loginStatValue}>{fmtNum(stats.logins_week)}</Text>
+              <Text style={styles.loginStatLabel}>7 days</Text>
+            </View>
+            <View style={styles.loginStatCard}>
+              <Text style={styles.loginStatValue}>{fmtNum(stats.logins_total)}</Text>
+              <Text style={styles.loginStatLabel}>All time</Text>
+            </View>
+          </View>
+          {/* Daily logins sparkline */}
+          <View style={[styles.sparkRow, { marginTop: SPACING.lg }]}>
+            {stats.daily_logins.map((d, i) => {
+              const localMax = Math.max(1, ...stats.daily_logins.map((x) => x.count));
+              const h = (d.count / localMax) * sparkH;
+              const isToday = i === stats.daily_logins.length - 1;
+              return (
+                <View key={`l-${d.date}`} style={styles.sparkCol}>
+                  <View style={[styles.sparkBarWrap, { height: sparkH, width: sparkBarWidth }]}>
+                    <LinearGradient
+                      colors={
+                        isToday
+                          ? ["#EC4899", "#F472B6"]
+                          : ["rgba(236,72,153,0.55)", "rgba(236,72,153,0.18)"]
+                      }
+                      style={[
+                        styles.sparkBar,
+                        { height: Math.max(2, h), width: sparkBarWidth },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.sparkLabel, isToday && { color: COLORS.neonPink }]}>
+                    {d.date.slice(5).replace("-", "/")}
+                  </Text>
+                  <Text style={[styles.sparkCount, isToday && styles.sparkCountActive]}>
+                    {d.count}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </Animated.View>
+
         {/* Login methods */}
         <Animated.View entering={FadeInDown.delay(350)} style={styles.section}>
           <Text style={styles.sectionTitle}>Login methods</Text>
@@ -429,6 +485,59 @@ const styles = StyleSheet.create({
 
   // Login methods
   methodRow: { flexDirection: "row", gap: 10, marginTop: 12 },
+
+  // Login activity (NEW)
+  livePillSmall: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(16,185,129,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(16,185,129,0.32)",
+  },
+  liveDotSmall: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#10B981",
+  },
+  livePillSmallText: {
+    fontFamily: FONTS.bodyHeavy,
+    fontSize: 9,
+    color: "#10B981",
+    letterSpacing: 1.2,
+  },
+  loginStatsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  loginStatCard: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(236,72,153,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(236,72,153,0.22)",
+    alignItems: "flex-start",
+  },
+  loginStatValue: {
+    fontFamily: "Inter_900Black",
+    fontSize: 22,
+    color: "#FFFFFF",
+    letterSpacing: -0.6,
+  },
+  loginStatLabel: {
+    fontFamily: FONTS.bodyHeavy,
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    letterSpacing: 1.2,
+    marginTop: 4,
+  },
   methodCard: {
     flex: 1, padding: 14, borderRadius: 16,
     backgroundColor: "rgba(255,255,255,0.04)",

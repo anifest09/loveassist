@@ -1,0 +1,42 @@
+{
+  "summary": "Backend-only verification of the new Admin Dashboard feature: login_events tracking + is_admin gating + /api/admin/stats payload shape & access-control. All 10 new tests in test_admin_dashboard.py pass and the full backend suite (54/54 total: 10 new + 44 historical) is green in 83s. Verified: (1) POST /api/auth/dev-login 3x as deepaksinghania755@gmail.com inserts 3 rows into MongoDB login_events collection (cross-checked via direct pymongo count). (2) GET /api/auth/me returns user.is_admin=true for admin email and false for a freshly-created random@test.com user. (3) GET /api/admin/stats with admin bearer returns 200 with every required field — total_users, signups_today/yesterday/week/month, active_sessions, premium_users, trial_users, logins_today/week/total (>=3), login_methods.google/apple, recent_signups[], daily_signups[7], the NEW daily_logins[7] array of {date,count}, and generated_at ISO string. (4) /api/admin/stats returns 403 for non-admin and 401 with no token. (5) Regression smoke for /api/auth/me, /api/subscription/status and /api/ai/first-message all pass. No backend code changes required.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "DELETE /api/auth/delete-account", "issue": "server.py:438 deletes by {'id': user_id} but the user document key is 'user_id' (see get_or_create_user line 159-168). Account-delete will silently no-op on the users collection. Unrelated to admin feature but worth flagging."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_admin_dashboard.py",
+    "/app/test_reports/pytest/admin_dashboard_results.xml"
+  ],
+  "action_items": [
+    "Optional cleanup (unrelated): fix DELETE /api/auth/delete-account user-doc filter to {'user_id': user_id} instead of {'id': user_id} (server.py:438)."
+  ],
+  "critical_code_review_comments": [
+    "server.py:189-202 — record_login_event is correctly best-effort (try/except wraps insert, never raises). Called after every successful auth in google_session (L257), dev_login (L275), apple_auth (L407). All three paths covered.",
+    "server.py:411-416 — is_admin computed from ADMIN_EMAILS (case-insensitive .lower() match). Mutated onto the user dict before being returned — note this also mutates the in-memory user object passed to get_subscription but no side-effects observed since user-dict isn't reused.",
+    "server.py:443-448 — get_admin_user reuses get_user_from_token (401 path) then 403s on non-admin. Correct precedence: invalid token => 401 before 403.",
+    "server.py:451-542 — /admin/stats payload shape matches the spec exactly. daily_logins built with same 7-day-window pattern as daily_signups. login_events.count_documents queries use proper datetime range filters.",
+    "server.py:1329-1330 — Indexes created on login_events (created_at desc, user_id) at startup. Good for the time-bucketed count_documents queries used by admin stats.",
+    "server.py is now ~1341 lines — splitting into modules (auth, admin, ai, payments, history) would improve maintainability but is non-blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_dashboard.py (new — 10 tests across 4 test classes)"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 new admin tests + 44/44 historical = 54/54)",
+    "frontend": "not tested per request"
+  },
+  "seed_data_creation": "Module-scoped admin sessions: 3x POST /api/auth/dev-login as deepaksinghania755@gmail.com (creating 3 login_events). 1x non-admin TEST_random_<uuid8>@test.com for negative-path tests.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Admin Dashboard backend is fully wired: login_events collection auto-created on first insert (lazy), indexes built at startup (server.py:1329-1330), ADMIN_EMAILS reads from env or defaults to deepaksinghania755@gmail.com. /api/admin/stats new fields verified: logins_today, logins_week, logins_total, daily_logins[7]. Frontend /admin route was NOT tested in this iteration per request — main agent can rely on user.is_admin from /api/auth/me to gate the route; non-admin should see Restricted screen. The minor delete-account user_id-vs-id filter bug (server.py:438) is pre-existing and unrelated to this feature.",
+  "rca_of_issue": "N/A — feature works end-to-end as specified."
+}

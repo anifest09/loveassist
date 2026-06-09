@@ -186,6 +186,21 @@ async def get_or_create_user(email: str, name: str, picture: Optional[str]) -> d
     return user_doc
 
 
+async def record_login_event(user_id: str, email: str, method: str) -> None:
+    """Insert a login event for admin analytics. Best-effort, never raises."""
+    try:
+        await db.login_events.insert_one(
+            {
+                "user_id": user_id,
+                "email": email,
+                "method": method,  # "google" | "apple" | "dev"
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+    except Exception:
+        logging.exception("record_login_event failed (non-fatal)")
+
+
 async def get_subscription(user_id: str) -> dict:
     sub = await db.subscriptions.find_one({"user_id": user_id}, {"_id": 0})
     if not sub:
@@ -239,6 +254,7 @@ async def google_session(req: GoogleSessionRequest):
         upsert=True,
     )
     user_fresh = await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    await record_login_event(user["user_id"], user_fresh.get("email") or "", "google")
     return {"session_token": session_token, "user": user_fresh}
 
 
@@ -256,6 +272,7 @@ async def dev_login(req: DevLoginRequest):
         }
     )
     user_fresh = await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    await record_login_event(user["user_id"], user_fresh.get("email") or "", "dev")
     return {"session_token": session_token, "user": user_fresh}
 
 
@@ -387,6 +404,7 @@ async def auth_apple(req: AppleAuthRequest):
         }
     )
     user_fresh = await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    await record_login_event(user["user_id"], user_fresh.get("email") or "", "apple")
     return {"session_token": session_token, "user": user_fresh}
 
 
@@ -394,6 +412,7 @@ async def auth_apple(req: AppleAuthRequest):
 async def auth_me(authorization: Optional[str] = Header(None)):
     user = await get_user_from_token(authorization)
     sub = await get_subscription(user["user_id"])
+    user["is_admin"] = (user.get("email") or "").lower() in ADMIN_EMAILS
     return {"user": user, "subscription": sub}
 
 
@@ -485,6 +504,21 @@ async def admin_stats(authorization: Optional[str] = Header(None)):
         c = await db.users.count_documents({"created_at": {"$gte": day, "$lt": next_day}})
         daily.append({"date": day.strftime("%Y-%m-%d"), "count": c})
 
+    # Login events (actual sign-in counts — separate from signups)
+    logins_today = await db.login_events.count_documents({"created_at": {"$gte": today_start}})
+    logins_week = await db.login_events.count_documents({"created_at": {"$gte": week_start}})
+    logins_total = await db.login_events.count_documents({})
+
+    # Daily logins for the last 7 days (sparkline)
+    daily_logins = []
+    for i in range(6, -1, -1):
+        day = today_start - timedelta(days=i)
+        next_day = day + timedelta(days=1)
+        c = await db.login_events.count_documents(
+            {"created_at": {"$gte": day, "$lt": next_day}}
+        )
+        daily_logins.append({"date": day.strftime("%Y-%m-%d"), "count": c})
+
     return {
         "total_users": total_users,
         "signups_today": signups_today,
@@ -494,12 +528,16 @@ async def admin_stats(authorization: Optional[str] = Header(None)):
         "active_sessions": active_sessions,
         "premium_users": premium_users,
         "trial_users": trial_users,
+        "logins_today": logins_today,
+        "logins_week": logins_week,
+        "logins_total": logins_total,
         "login_methods": {
             "google": google_users,
             "apple": apple_users,
         },
         "recent_signups": recent,
         "daily_signups": daily,
+        "daily_logins": daily_logins,
         "generated_at": now.isoformat(),
     }
 
@@ -1288,6 +1326,8 @@ async def startup():
         await db.user_sessions.create_index("session_token", unique=True)
         await db.user_sessions.create_index("user_id")
         await db.history.create_index([("user_id", 1), ("created_at", -1)])
+        await db.login_events.create_index([("created_at", -1)])
+        await db.login_events.create_index("user_id")
     except Exception as e:
         logging.warning(f"Index creation: {e}")
 
