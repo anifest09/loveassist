@@ -267,14 +267,16 @@ export default function PremiumPaywall() {
             </Animated.View>
           </View>
 
-          {/* ===== PASTEL SHEET ===== */}
+          {/* ===== DARK GLASS SHEET ===== */}
           <View style={styles.sheetWrap}>
-            <LinearGradient
-              colors={["#FBCFE8", "#E9D5FF", "#DBEAFE"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.sheet}
-            >
+            <View style={styles.sheet}>
+              <LinearGradient
+                colors={["rgba(139,92,246,0.18)", "rgba(236,72,153,0.10)", "rgba(10,10,15,0.0)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              />
               <View style={styles.sheetHandle} />
 
               <Text style={styles.sheetTitle}>Premium Membership</Text>
@@ -342,7 +344,7 @@ export default function PremiumPaywall() {
               <View style={styles.benefitsGrid}>
                 {BENEFITS.map((b, i) => (
                   <Animated.View key={b.t} entering={FadeInDown.delay(i * 50)} style={styles.benefitChip}>
-                    <Ionicons name={b.icon} size={13} color="#0A0A0F" />
+                    <Ionicons name={b.icon} size={13} color={COLORS.neonPink} />
                     <Text style={styles.benefitChipText}>{b.t}</Text>
                   </Animated.View>
                 ))}
@@ -353,9 +355,9 @@ export default function PremiumPaywall() {
                   <Ionicons
                     name={msgError ? "alert-circle" : "checkmark-circle"}
                     size={14}
-                    color={msgError ? "#B91C1C" : "#0A0A0F"}
+                    color={msgError ? "#FCA5A5" : "#10B981"}
                   />
-                  <Text style={[styles.msgText, msgError && { color: "#B91C1C" }]}>{msg}</Text>
+                  <Text style={[styles.msgText, msgError && { color: "#FCA5A5" }]}>{msg}</Text>
                 </View>
               )}
 
@@ -369,7 +371,7 @@ export default function PremiumPaywall() {
                   testID="paywall-cta"
                 >
                   {busy === "trial" || busy === "razorpay" ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <ActivityIndicator color="#0A0A0F" />
                   ) : (
                     <>
                       <Text style={styles.ctaBlackText}>
@@ -380,7 +382,7 @@ export default function PremiumPaywall() {
                             : `Subscribe · $${price.toFixed(2)}/mo`}
                       </Text>
                       <View style={styles.ctaArrow}>
-                        <Ionicons name="arrow-forward" size={16} color="#0A0A0F" />
+                        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
                       </View>
                     </>
                   )}
@@ -419,9 +421,9 @@ export default function PremiumPaywall() {
                         <Text style={styles.payBtnSub}>UPI · Cards · Wallets</Text>
                       </View>
                       {busy === "razorpay" ? (
-                        <ActivityIndicator color="#0A0A0F" size="small" />
+                        <ActivityIndicator color="#FFFFFF" size="small" />
                       ) : (
-                        <Ionicons name="chevron-forward" size={14} color="rgba(10,10,15,0.5)" />
+                        <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.5)" />
                       )}
                     </TouchableOpacity>
 
@@ -440,20 +442,20 @@ export default function PremiumPaywall() {
                         <Text style={styles.payBtnSub}>Balance · Card · Pay in 4</Text>
                       </View>
                       {busy === "paypal" ? (
-                        <ActivityIndicator color="#0A0A0F" size="small" />
+                        <ActivityIndicator color="#FFFFFF" size="small" />
                       ) : (
-                        <Ionicons name="chevron-forward" size={14} color="rgba(10,10,15,0.5)" />
+                        <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.5)" />
                       )}
                     </TouchableOpacity>
                   </View>
 
                   <View style={styles.secureRow}>
-                    <Ionicons name="lock-closed" size={11} color="rgba(10,10,15,0.55)" />
+                    <Ionicons name="lock-closed" size={11} color="rgba(255,255,255,0.55)" />
                     <Text style={styles.secureText}>Secure checkout · sandbox preview activates Premium for testing</Text>
                   </View>
                 </View>
               )}
-            </LinearGradient>
+            </View>
           </View>
 
           {/* Testimonial */}
@@ -492,7 +494,7 @@ function TimelineStep({
   return (
     <View style={styles.tlStep}>
       <View style={[styles.tlIcon, accent && styles.tlIconAccent]}>
-        <Ionicons name={icon} size={13} color={accent ? "#FFFFFF" : "#0A0A0F"} />
+        <Ionicons name={icon} size={13} color={accent ? "#0A0A0F" : "#FFFFFF"} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.tlTitle}>{title}</Text>
@@ -619,8 +621,11 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     padding: SPACING.lg,
     overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
     shadowColor: "#EC4899",
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 26,
     shadowOffset: { width: 0, height: 14 },
     elevation: 14,
@@ -628,34 +633,34 @@ const styles = StyleSheet.create({
   sheetHandle: {
     alignSelf: "center",
     width: 44, height: 5, borderRadius: 3,
-    backgroundColor: "rgba(10,10,15,0.18)",
+    backgroundColor: "rgba(255,255,255,0.20)",
     marginBottom: SPACING.lg,
   },
   sheetTitle: {
-    fontFamily: "Inter_900Black", fontSize: 26, color: "#0A0A0F",
+    fontFamily: "Inter_900Black", fontSize: 26, color: "#FFFFFF",
     letterSpacing: -0.8,
   },
   sheetSub: {
     marginTop: 4,
-    fontFamily: FONTS.bodyMedium, fontSize: 13, color: "rgba(10,10,15,0.65)",
+    fontFamily: FONTS.bodyMedium, fontSize: 13, color: "rgba(255,255,255,0.65)",
   },
 
   priceRow: {
     flexDirection: "row", alignItems: "baseline",
     marginTop: SPACING.lg,
     paddingBottom: SPACING.md,
-    borderBottomWidth: 1, borderBottomColor: "rgba(10,10,15,0.10)",
+    borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.10)",
   },
   priceAmount: {
-    fontFamily: "Inter_900Black", fontSize: 42, color: "#0A0A0F",
+    fontFamily: "Inter_900Black", fontSize: 42, color: "#FFFFFF",
     letterSpacing: -1.5,
   },
-  pricePer: { fontFamily: FONTS.bodyBold, fontSize: 14, color: "#0A0A0F" },
-  priceFootnote: { fontFamily: FONTS.body, fontSize: 11, color: "rgba(10,10,15,0.55)" },
+  pricePer: { fontFamily: FONTS.bodyBold, fontSize: 14, color: "#FFFFFF" },
+  priceFootnote: { fontFamily: FONTS.body, fontSize: 11, color: "rgba(255,255,255,0.55)" },
   bestBadge: {
     flexDirection: "row", alignItems: "center", gap: 4,
     paddingHorizontal: 9, paddingVertical: 5,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.neonPink,
     borderRadius: 999,
   },
   bestBadgeText: { fontFamily: FONTS.bodyHeavy, fontSize: 9, color: "#0A0A0F", letterSpacing: 1 },
@@ -665,29 +670,33 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
-    backgroundColor: "rgba(255,255,255,0.55)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
     borderRadius: RADIUS.lg,
   },
-  trialTitle: { fontFamily: FONTS.bodyHeavy, fontSize: 14, color: "#0A0A0F" },
-  trialSub: { fontFamily: FONTS.body, fontSize: 12, color: "rgba(10,10,15,0.65)", marginTop: 2 },
+  trialTitle: { fontFamily: FONTS.bodyHeavy, fontSize: 14, color: "#FFFFFF" },
+  trialSub: { fontFamily: FONTS.body, fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 },
 
   timeline: {
     marginTop: SPACING.md,
     padding: SPACING.md,
-    backgroundColor: "rgba(255,255,255,0.45)",
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
     borderRadius: RADIUS.lg,
   },
   tlStep: { flexDirection: "row", alignItems: "center", gap: 12 },
   tlIcon: {
     width: 30, height: 30, borderRadius: 15,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center", justifyContent: "center",
   },
-  tlIconAccent: { backgroundColor: "#0A0A0F" },
-  tlTitle: { fontFamily: FONTS.bodyHeavy, fontSize: 13, color: "#0A0A0F" },
-  tlDesc: { fontFamily: FONTS.body, fontSize: 11, color: "rgba(10,10,15,0.65)", marginTop: 1 },
+  tlIconAccent: { backgroundColor: COLORS.neonPink },
+  tlTitle: { fontFamily: FONTS.bodyHeavy, fontSize: 13, color: "#FFFFFF" },
+  tlDesc: { fontFamily: FONTS.body, fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 1 },
   timelineLine: {
-    width: 2, height: 12, backgroundColor: "rgba(10,10,15,0.12)",
+    width: 2, height: 12, backgroundColor: "rgba(255,255,255,0.12)",
     marginLeft: 14, marginVertical: 4,
   },
 
@@ -698,37 +707,46 @@ const styles = StyleSheet.create({
   benefitChip: {
     flexDirection: "row", alignItems: "center", gap: 6,
     paddingHorizontal: 10, paddingVertical: 7,
-    backgroundColor: "rgba(255,255,255,0.65)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
     borderRadius: 999,
   },
-  benefitChipText: { fontFamily: FONTS.bodySemi, fontSize: 11, color: "#0A0A0F" },
+  benefitChipText: { fontFamily: FONTS.bodySemi, fontSize: 11, color: "#FFFFFF" },
 
   msgBox: {
     marginTop: SPACING.md,
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
     borderRadius: RADIUS.lg,
     padding: 10,
   },
-  msgBoxError: { backgroundColor: "rgba(254,202,202,0.85)" },
-  msgText: { flex: 1, fontFamily: FONTS.bodySemi, fontSize: 12, color: "#0A0A0F" },
+  msgBoxError: { backgroundColor: "rgba(239,68,68,0.18)", borderColor: "rgba(239,68,68,0.40)" },
+  msgText: { flex: 1, fontFamily: FONTS.bodySemi, fontSize: 12, color: "#FFFFFF" },
 
-  // Black pill CTA
+  // Bright pink CTA (neon brand)
   ctaBlack: {
     marginTop: SPACING.md,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 18, paddingVertical: 16,
-    backgroundColor: "#0A0A0F",
+    backgroundColor: COLORS.neonPink,
     borderRadius: 999,
     minHeight: 58,
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.55,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
   },
   ctaBlackText: {
-    fontFamily: FONTS.bodyHeavy, fontSize: 15, color: "#FFFFFF",
+    fontFamily: FONTS.bodyHeavy, fontSize: 15, color: "#0A0A0F",
     letterSpacing: 0.2,
   },
   ctaArrow: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0A0A0F",
     alignItems: "center", justifyContent: "center",
   },
 
@@ -736,21 +754,25 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     flexDirection: "row", alignItems: "center", gap: SPACING.sm,
     padding: SPACING.md,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    backgroundColor: "rgba(16,185,129,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(16,185,129,0.30)",
     borderRadius: RADIUS.lg,
   },
-  activeText: { flex: 1, fontFamily: FONTS.bodyMedium, fontSize: 13, color: "#0A0A0F" },
+  activeText: { flex: 1, fontFamily: FONTS.bodyMedium, fontSize: 13, color: "#FFFFFF" },
 
   // Alt payment
   orRow: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: SPACING.md },
-  orLine: { flex: 1, height: 1, backgroundColor: "rgba(10,10,15,0.15)" },
-  orText: { fontFamily: FONTS.bodyHeavy, fontSize: 10, color: "rgba(10,10,15,0.55)", letterSpacing: 1.2 },
+  orLine: { flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.15)" },
+  orText: { fontFamily: FONTS.bodyHeavy, fontSize: 10, color: "rgba(255,255,255,0.55)", letterSpacing: 1.2 },
 
   payRow: { gap: 8 },
   payBtn: {
     flexDirection: "row", alignItems: "center", gap: 10,
     padding: 10,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
     borderRadius: RADIUS.lg,
   },
   payLogo: {
@@ -758,15 +780,15 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   payLogoText: { color: "#FFFFFF", fontFamily: FONTS.bodyHeavy, fontSize: 16 },
-  payBtnTitle: { fontFamily: FONTS.bodyHeavy, fontSize: 13, color: "#0A0A0F" },
-  payBtnSub: { fontFamily: FONTS.body, fontSize: 10, color: "rgba(10,10,15,0.6)", marginTop: 1 },
+  payBtnTitle: { fontFamily: FONTS.bodyHeavy, fontSize: 13, color: "#FFFFFF" },
+  payBtnSub: { fontFamily: FONTS.body, fontSize: 10, color: "rgba(255,255,255,0.55)", marginTop: 1 },
   secureRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 5, marginTop: SPACING.sm,
   },
   secureText: {
     fontFamily: FONTS.body, fontSize: 10,
-    color: "rgba(10,10,15,0.6)", textAlign: "center", flexShrink: 1,
+    color: "rgba(255,255,255,0.55)", textAlign: "center", flexShrink: 1,
   },
 
   // Testimonial
