@@ -23,7 +23,7 @@ type ActionCard = {
 const ACTIONS: ActionCard[] = [
   { key: "suggest", title: "Smart Replies", subtitle: "Get tailored responses for any chat", icon: "chatbubbles", route: "/suggest", primary: true },
   { key: "screenshot", title: "Screenshot Reader", subtitle: "Upload a conversation, get reply ideas", icon: "scan", route: "/screenshot" },
-  { key: "first", title: "First Message", subtitle: "Craft the perfect opener", icon: "paper-plane", route: "/first-message" },
+  { key: "first", title: "First Message", subtitle: "Opener from bio screenshot or text", icon: "paper-plane", route: "/first-message" },
 ];
 
 function greeting(): string {

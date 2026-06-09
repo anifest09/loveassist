@@ -23,6 +23,13 @@ MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
 EMERGENT_LLM_KEY = os.environ["EMERGENT_LLM_KEY"]
 
+# Admin emails — only these accounts can access /api/admin/stats
+ADMIN_EMAILS = {
+    e.strip().lower()
+    for e in os.environ.get("ADMIN_EMAILS", "deepaksinghania755@gmail.com").split(",")
+    if e.strip()
+}
+
 mongo_client = AsyncIOMotorClient(MONGO_URL)
 db = mongo_client[DB_NAME]
 
@@ -52,6 +59,14 @@ class FirstMessageRequest(BaseModel):
 
 
 class ScreenshotRequest(BaseModel):
+    image_base64: str
+    mode: Literal["normal", "flirty", "exclusive"] = "normal"
+    language: str = "en"
+    count: int = 4
+    extra_context: str = ""
+
+
+class BioOpenerRequest(BaseModel):
     image_base64: str
     mode: Literal["normal", "flirty", "exclusive"] = "normal"
     language: str = "en"
@@ -405,6 +420,90 @@ async def delete_account(authorization: Optional[str] = Header(None)):
     return {"ok": True}
 
 
+# ===================== Admin =====================
+async def get_admin_user(authorization: Optional[str] = Header(None)):
+    user = await get_user_from_token(authorization)
+    email = (user.get("email") or "").lower()
+    if email not in ADMIN_EMAILS:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+@api_router.get("/admin/stats")
+async def admin_stats(authorization: Optional[str] = Header(None)):
+    """Return aggregate signup / login / subscription metrics. Admin only."""
+    await get_admin_user(authorization)
+
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+    month_start = today_start - timedelta(days=30)
+    day_yesterday = today_start - timedelta(days=1)
+
+    total_users = await db.users.count_documents({})
+    signups_today = await db.users.count_documents({"created_at": {"$gte": today_start}})
+    signups_yesterday = await db.users.count_documents(
+        {"created_at": {"$gte": day_yesterday, "$lt": today_start}}
+    )
+    signups_week = await db.users.count_documents({"created_at": {"$gte": week_start}})
+    signups_month = await db.users.count_documents({"created_at": {"$gte": month_start}})
+
+    active_sessions = await db.user_sessions.count_documents(
+        {"expires_at": {"$gte": now}}
+    )
+
+    premium_users = await db.users.count_documents(
+        {"subscription_status": {"$in": ["premium", "active"]}}
+    )
+    trial_users = await db.users.count_documents({"subscription_status": "trial"})
+
+    # Login method breakdown
+    google_users = await db.users.count_documents({"google_id": {"$exists": True, "$ne": None}})
+    apple_users = await db.users.count_documents({"apple_sub": {"$exists": True, "$ne": None}})
+
+    # Recent signups (last 10)
+    recent_cursor = (
+        db.users.find(
+            {},
+            {"_id": 0, "email": 1, "name": 1, "created_at": 1, "subscription_status": 1, "picture": 1},
+        )
+        .sort("created_at", -1)
+        .limit(10)
+    )
+    recent = []
+    async for u in recent_cursor:
+        ca = u.get("created_at")
+        if isinstance(ca, datetime):
+            u["created_at"] = ca.isoformat()
+        recent.append(u)
+
+    # Daily signups for the last 7 days (sparkline)
+    daily = []
+    for i in range(6, -1, -1):
+        day = today_start - timedelta(days=i)
+        next_day = day + timedelta(days=1)
+        c = await db.users.count_documents({"created_at": {"$gte": day, "$lt": next_day}})
+        daily.append({"date": day.strftime("%Y-%m-%d"), "count": c})
+
+    return {
+        "total_users": total_users,
+        "signups_today": signups_today,
+        "signups_yesterday": signups_yesterday,
+        "signups_week": signups_week,
+        "signups_month": signups_month,
+        "active_sessions": active_sessions,
+        "premium_users": premium_users,
+        "trial_users": trial_users,
+        "login_methods": {
+            "google": google_users,
+            "apple": apple_users,
+        },
+        "recent_signups": recent,
+        "daily_signups": daily,
+        "generated_at": now.isoformat(),
+    }
+
+
 # ===================== Subscription =====================
 @api_router.get("/subscription/status")
 async def sub_status(authorization: Optional[str] = Header(None)):
@@ -681,6 +780,56 @@ async def ai_screenshot(
         raise
     except Exception as e:
         logging.exception("AI screenshot error")
+        raise HTTPException(status_code=500, detail=f"AI error: {e}")
+
+
+@api_router.post("/ai/first-message-from-bio")
+async def ai_first_message_from_bio(
+    req: BioOpenerRequest, authorization: Optional[str] = Header(None)
+):
+    """Generate personalized opening messages from a dating app bio screenshot.
+
+    Accepts a screenshot of a profile (Tinder, Hinge, Bumble, Instagram bio, etc.),
+    extracts visible interests/prompts/photos, and returns highly tailored openers.
+    """
+    user = await get_user_from_token(authorization)
+    await require_mode_access(user, req.mode)
+    sys_msg = build_system_message(req.mode, req.language, "opening / first")
+    user_text = (
+        "This is a screenshot of a dating-app profile or bio (Tinder / Hinge / Bumble / "
+        "Instagram / etc.). Carefully read EVERY visible detail: name, age, prompts, "
+        "interests, hobbies, job, school, location, anchors, and what's shown in their photos "
+        "(activities, places, pets, outfits, vibe). Identify the 2–3 most personality-revealing "
+        "or unique details — NOT generic ones.\n\n"
+        f"Extra context from me: {req.extra_context or 'none'}\n\n"
+        f"Now generate {req.count} distinct opening messages I could send them as a first DM. "
+        "Each opener MUST reference something specific you actually saw on the profile (a prompt, a "
+        "photo detail, an interest) — never generic. Keep them short (1–2 sentences), warm, "
+        "curious, and easy to reply to. Use light playful energy where appropriate. "
+        "Avoid: 'hey beautiful', compliments on looks, pickup lines, anything creepy. "
+        "Return ONLY a JSON array of strings."
+    )
+    b64 = req.image_base64 or ""
+    if "," in b64 and b64.startswith("data:"):
+        b64 = b64.split(",", 1)[1]
+    if not b64:
+        raise HTTPException(status_code=400, detail="image_base64 required")
+    try:
+        text = await call_claude(sys_msg, user_text, image_b64=b64)
+        suggestions = parse_json_list(text)[: req.count]
+        if check_safety_block(suggestions):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "SAFETY_BLOCKED",
+                    "message": "This profile screenshot appears to contain nudity or explicit content, which LoveAssist won't analyze. Please upload a regular bio screenshot.",
+                },
+            )
+        return {"suggestions": suggestions}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("AI bio-opener error")
         raise HTTPException(status_code=500, detail=f"AI error: {e}")
 
 

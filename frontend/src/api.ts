@@ -87,6 +87,27 @@ export const api = {
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
   deleteAccount: () =>
     request<{ ok: boolean }>("/auth/delete-account", { method: "DELETE" }),
+  adminStats: () =>
+    request<{
+      total_users: number;
+      signups_today: number;
+      signups_yesterday: number;
+      signups_week: number;
+      signups_month: number;
+      active_sessions: number;
+      premium_users: number;
+      trial_users: number;
+      login_methods: { google: number; apple: number };
+      recent_signups: Array<{
+        email?: string;
+        name?: string;
+        picture?: string;
+        created_at?: string;
+        subscription_status?: string;
+      }>;
+      daily_signups: Array<{ date: string; count: number }>;
+      generated_at: string;
+    }>("/admin/stats", { method: "GET" }),
 
   // Subscription
   subStatus: () =>
@@ -131,6 +152,17 @@ export const api = {
     extra_context?: string;
   }) =>
     request<{ suggestions: string[] }>("/ai/screenshot", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  firstMessageFromBio: (body: {
+    image_base64: string;
+    mode: string;
+    language: string;
+    count?: number;
+    extra_context?: string;
+  }) =>
+    request<{ suggestions: string[] }>("/ai/first-message-from-bio", {
       method: "POST",
       body: JSON.stringify(body),
     }),

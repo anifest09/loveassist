@@ -47,11 +47,11 @@ export default function LoginScreen() {
   const { signInGoogleWithSessionId, signInApple, signInDev, user, loading } = useAuth();
   const [busy, setBusy] = useState<"google" | "apple" | "dev" | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showApple, setShowApple] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
 
-  // Detect Apple Sign In availability (iOS only)
+  // Detect Apple Sign In availability (iOS only) — but the button is always shown
   useEffect(() => {
-    isAppleAuthAvailable().then(setShowApple);
+    isAppleAuthAvailable().then(setAppleAvailable);
   }, []);
 
   // Floating orb animations
@@ -126,6 +126,13 @@ export default function LoginScreen() {
 
   const handleApple = async () => {
     setErrorMsg(null);
+    if (Platform.OS !== "ios" || !appleAvailable) {
+      setErrorMsg(
+        "Apple Sign-In is available only on iOS devices. Tap Google or Demo to continue.",
+      );
+      try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch {}
+      return;
+    }
     setBusy("apple");
     try {
       try { await Haptics.selectionAsync(); } catch {}
@@ -201,24 +208,28 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {showApple && (
-            <TouchableOpacity
-              style={styles.appleBtn}
-              onPress={handleApple}
-              activeOpacity={0.9}
-              disabled={busy !== null}
-              testID="login-apple-button"
-            >
-              {busy === "apple" ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
-                  <Text style={styles.appleBtnText}>Continue with Apple</Text>
-                </>
-              )}
-            </TouchableOpacity>
+          {/* Apple Sign-In — always visible (per Apple App Store guideline 4.8) */}
+          <TouchableOpacity
+            style={styles.appleBtn}
+            onPress={handleApple}
+            activeOpacity={0.9}
+            disabled={busy !== null}
+            testID="login-apple-button"
+          >
+            {busy === "apple" ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+                <Text style={styles.appleBtnText}>Continue with Apple</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          {!appleAvailable && Platform.OS !== "ios" && (
+            <Text style={styles.appleHint}>Apple Sign-In activates on iOS devices</Text>
           )}
+
+
 
           <TouchableOpacity style={styles.ghostBtn} onPress={handleDev} activeOpacity={0.9} disabled={busy !== null} testID="login-demo-button">
             {busy === "dev" ? (
@@ -378,6 +389,14 @@ const styles = StyleSheet.create({
     minHeight: 54,
   },
   appleBtnText: { color: "#FFFFFF", fontFamily: FONTS.bodyHeavy, fontSize: 15, letterSpacing: 0.3 },
+  appleHint: {
+    marginTop: 6,
+    alignSelf: "center",
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 11,
+    opacity: 0.7,
+  },
 
   error: { marginTop: SPACING.md, color: COLORS.danger, fontSize: 13, textAlign: "center", fontFamily: FONTS.bodyMedium },
 
