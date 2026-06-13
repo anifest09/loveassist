@@ -87,11 +87,6 @@ class UpdateSettingsRequest(BaseModel):
     default_mode: Optional[str] = None
 
 
-class DevLoginRequest(BaseModel):
-    name: str = "Demo User"
-    email: str = "demo@loveassist.ai"
-
-
 class AppleFullName(BaseModel):
     givenName: Optional[str] = None
     familyName: Optional[str] = None
@@ -168,21 +163,7 @@ async def get_or_create_user(email: str, name: str, picture: Optional[str]) -> d
     }
     await db.users.insert_one(user_doc)
     user_doc.pop("_id", None)
-    # Auto-start 7-day free trial on signup
-    await db.subscriptions.update_one(
-        {"user_id": user_id},
-        {
-            "$setOnInsert": {
-                "user_id": user_id,
-                "status": "trialing",
-                "mode": "simulated",
-                "trial_end": now + timedelta(days=7),
-                "premium_until": now + timedelta(days=7),
-                "created_at": now,
-            }
-        },
-        upsert=True,
-    )
+    # No auto-trial on signup - users must add payment method first
     return user_doc
 
 
@@ -255,24 +236,6 @@ async def google_session(req: GoogleSessionRequest):
     )
     user_fresh = await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0})
     await record_login_event(user["user_id"], user_fresh.get("email") or "", "google")
-    return {"session_token": session_token, "user": user_fresh}
-
-
-@api_router.post("/auth/dev-login")
-async def dev_login(req: DevLoginRequest):
-    user = await get_or_create_user(req.email, req.name, None)
-    session_token = f"dev_{uuid.uuid4().hex}"
-    now = datetime.now(timezone.utc)
-    await db.user_sessions.insert_one(
-        {
-            "session_token": session_token,
-            "user_id": user["user_id"],
-            "expires_at": now + timedelta(days=7),
-            "created_at": now,
-        }
-    )
-    user_fresh = await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0})
-    await record_login_event(user["user_id"], user_fresh.get("email") or "", "dev")
     return {"session_token": session_token, "user": user_fresh}
 
 
@@ -986,25 +949,7 @@ async def razorpay_create_link(
 ):
     user = await get_user_from_token(authorization)
     if _is_placeholder(RAZORPAY_KEY_ID) or _is_placeholder(RAZORPAY_KEY_SECRET):
-        # Simulated link so the UI flow works in preview without real creds.
-        ref = f"sim_rzp_{uuid.uuid4().hex[:10]}"
-        await db.payments.insert_one(
-            {
-                "user_id": user["user_id"],
-                "gateway": "razorpay",
-                "ref": ref,
-                "status": "simulated_pending",
-                "amount_usd": PREMIUM_USD_PRICE,
-                "created_at": datetime.now(timezone.utc),
-            }
-        )
-        return {
-            "simulated": True,
-            "payment_link_id": ref,
-            "short_url": f"about:blank#simulated-razorpay-{ref}",
-            "amount_usd": PREMIUM_USD_PRICE,
-            "message": "Razorpay credentials are placeholders. Live link will be generated once you set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in production env.",
-        }
+        raise HTTPException(status_code=503, detail="Razorpay not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in production env.")
     # Razorpay charges in paise; we keep USD by default. Multiply by 100.
     amount_paise = int(round(PREMIUM_USD_PRICE * 100))
     body = {
